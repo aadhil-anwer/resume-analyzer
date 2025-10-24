@@ -74,10 +74,6 @@ It intelligently analyzes resumes, job descriptions, and LinkedIn data to provid
 
 ## 🧑‍💻 Project Lead
 
-**Aadhil Anwar Sadath**  
-Cybersecurity Engineer | AI Developer | CareerTech Innovator  
-🎯 *Building a smarter ecosystem for career growth.*
-
 ---
 
 > _"Beyond resumes — your entire professional story, reimagined."_ 🪶
