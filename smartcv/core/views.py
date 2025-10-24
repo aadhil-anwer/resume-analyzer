@@ -18,6 +18,8 @@ from core.utils.normalize import normalize_text
 from core.utils.local_checks import run_local_checks
 from core.utils.general_cv_analysis import gemini_resume_analysis
 from core.utils.jd_resume_analysis import gemini_resume_jd_match_analysis
+from core.utils.latex_resume_generator import generate_latex_resume
+
 import unicodedata
 import io
 
@@ -135,3 +137,50 @@ def upload_resume_with_jd(request):
     return render(request, "core/jd_upload.html", {"result": json.dumps(result, ensure_ascii=False, indent=2)})
 
 
+@require_POST
+def generate_latex_view(request):
+    """
+    Takes AI review result and resume text, then generates LaTeX using GPT-5-mini.
+    (View-only — does NOT save to DB)
+    """
+    try:
+        result_json = request.POST.get("resume_text")
+        if not result_json:
+            return render(request, "core/upload.html", {"error": "No resume data received."})
+
+        # Parse JSON safely
+        result_data = json.loads(result_json)
+        ai_suggestions = result_data.get("ai_analysis", {})
+
+        # ✅ Load the latest uploaded resume (without saving anything)
+        instance = ResumeUpload.objects.last()
+        if not instance or not instance.file:
+            return render(request, "core/upload.html", {"error": "No uploaded resume file found."})
+
+        file_path = instance.file.path
+
+        # ✅ Re-extract resume text
+        if file_path.lower().endswith(".pdf"):
+            resume_text = extract_text_from_pdf(file_path)
+        elif file_path.lower().endswith(".docx"):
+            resume_text = extract_text_from_docx(file_path)
+        else:
+            return render(request, "core/upload.html", {"error": "Unsupported file type."})
+
+        resume_text = normalize_text(resume_text)
+
+        # ✅ Generate the LaTeX using GPT-5-mini
+        latex_output = generate_latex_resume(resume_text, ai_suggestions)
+
+        # ✅ Just render the LaTeX on screen — no save
+        return render(
+            request,
+            "core/upload.html",
+            {
+                "result": json.dumps(result_data, indent=2, ensure_ascii=False),
+                "latex": latex_output,
+            },
+        )
+
+    except Exception as e:
+        return render(request, "core/upload.html", {"error": f"Error generating LaTeX: {str(e)}"})

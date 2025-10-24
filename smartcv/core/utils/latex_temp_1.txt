@@ -1,0 +1,147 @@
+%-------------------------
+% Resume in LaTeX
+% Author : Trafalgar D. Water Law
+%------------------------
+
+\documentclass[letterpaper,11pt]{article}
+
+\usepackage{latexsym}
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{marvosym}
+\usepackage[usenames,dvipsnames]{color}
+\usepackage{verbatim}
+\usepackage{enumitem}
+\usepackage[pdftex]{hyperref}
+\usepackage{fancyhdr}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+\addtolength{\oddsidemargin}{-0.375in}
+\addtolength{\evensidemargin}{-0.375in}
+\addtolength{\textwidth}{1in}
+\addtolength{\topmargin}{-.5in}
+\addtolength{\textheight}{1.0in}
+
+\urlstyle{same}
+\raggedbottom
+\raggedright
+\setlength{\tabcolsep}{0in}
+
+\titleformat{\section}{
+  \vspace{-4pt}\scshape\raggedright\large
+}{}{0em}{}[\color{black}\titlerule \vspace{-5pt}]
+
+\newcommand{\resumeItem}[2]{\item\small{\textbf{#1}{: #2 \vspace{-2pt}}}}
+\newcommand{\resumeSubheading}[4]{
+  \vspace{-1pt}\item
+    \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+      \textbf{#1} & #2 \\
+      \textit{\small#3} & \textit{\small #4} \\
+    \end{tabular*}\vspace{-5pt}
+}
+\newcommand{\resumeSubItem}[2]{\resumeItem{#1}{#2}\vspace{-4pt}}
+\renewcommand{\labelitemii}{$\circ$}
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=*]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+\newcommand{\resumeItemListStart}{\begin{itemize}}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{-5pt}}
+
+%-------------------------------------------
+\begin{document}
+
+\begin{tabular*}{\textwidth}{l@{\extracolsep{\fill}}r}
+  \textbf{\href{https://example.com/}{\Large Candidate Name}} & Email: \href{mailto:candidate@example.com}{candidate@example.com} \\
+  \href{https://example.com}{example.com} \textbullet\ 
+  \href{https://www.linkedin.com/in/example/}{LinkedIn} & +00 0000000000 \\
+\end{tabular*}
+
+%---------- CERTIFICATIONS ----------
+\section{Certifications}
+  \resumeSubHeadingListStart
+    \item \small{\textbf{Certified Information Systems Basics (CIB)} \hfill Mar 2024}
+    \item \small{\textbf{Network Fundamentals Certificate} \hfill Aug 2023}
+    \item \small{\textbf{Intro to Digital Forensics} \hfill Jan 2025}
+  \resumeSubHeadingListEnd
+
+%---------- SKILLS ----------
+\section{Skills}
+  \resumeSubHeadingListStart
+    \resumeSubItem{Programming \& Automation}{Python, Bash, Shell Scripting, Log Parsing, Simple Django apps}
+    \resumeSubItem{Cloud \& Databases}{Basic AWS (EC2, S3, IAM concepts), MySQL, SQLite}
+    \resumeSubItem{Security Concepts}{OWASP Top 10, Vulnerability Assessment, Burp Suite basics}
+  \resumeSubHeadingListEnd
+
+%---------- EXPERIENCE ----------
+\section{Experience}
+  \resumeSubHeadingListStart
+
+   \resumeSubheading
+   {Network Engineering Intern}{City, State}
+   {Regional IT Services — Internship}{Feb 2024 -- Apr 2024}
+   \resumeItemListStart
+     \resumeItem{Log Analysis \& Automation}
+       {Wrote Python and Bash scripts to aggregate and parse system and network logs; flagged anomalous events and prepared weekly reports.}
+     \resumeItem{Access Control}
+       {Assisted in VLAN configuration, basic ACL creation, and documented standard operating procedures for network access.}
+   \resumeItemListEnd
+
+   \resumeSubheading{Student Security Coordinator}{City, State}{University Cybersecurity Club}{Sep 2023 -- Apr 2024}
+     \resumeItemListStart
+       \resumeItem{Security Lab Development}
+         {Designed controlled vulnerable lab environments to demonstrate common web and network vulnerabilities.}
+       \resumeItem{Workshops}
+         {Organized and delivered multiple introductory workshops on web security concepts to groups of 50+ students.}
+     \resumeItemListEnd
+
+  \resumeSubHeadingListEnd
+
+%---------- PROJECTS ----------
+\section{Projects}
+\resumeSubHeadingListStart
+
+  \resumeSubheading
+    {Lightweight HTTP/1.1 Server}{Personal Project}{Systems \& Networking}{2025}
+    \resumeItemListStart
+      \resumeItem{Protocol Implementation}
+        {Implemented an HTTP/1.1 server using raw TCP sockets in Python; handled request parsing and response generation including chunked transfers.}
+      \resumeItem{Secure Development Mindset}
+        {Built input validation and basic error handling; added logging and simple rate-limiting to mitigate abuse.}
+    \resumeItemListEnd
+
+  \resumeSubheading
+    {Automated Log Aggregator}{Personal Project}{Dev Tools}{2024}
+    \resumeItemListStart
+      \resumeItem{Tooling}
+        {Built a small Python tool to collect, normalize, and summarize logs from various sources; outputs CSV summary and alert candidates.}
+      \resumeItem{Integration}
+        {Configured simple cron jobs and basic alert emails for critical error signatures.}
+    \resumeItemListEnd
+
+\resumeSubHeadingListEnd
+
+%---------- EDUCATION ----------
+\section{Education}
+  \resumeSubHeadingListStart
+    \resumeSubheading
+      {Georgia Institute of Technology}{Atlanta, GA}
+      {Master of Science in Computer Science;  GPA: 4.00}{Aug. 2012 -- Dec. 2013}
+    \resumeSubheading
+      {Birla Institute of Technology and Science}{Pilani, India}
+      {Bachelor of Engineering in Electrical and Electronics;  GPA: 3.66 (9.15/10.0)}{Aug. 2008 -- July. 2012}
+  \resumeSubHeadingListEnd
+
+%---------- ACHIEVEMENTS ----------
+\section{Achievements}
+  \resumeSubHeadingListStart
+    \item Placed in top 10 in multiple university-level security challenges and capture-the-flag events.
+    \item Received a small student innovation grant for a privacy-oriented campus project.
+    \item Contributed to community bug-hunting exercises and reported issues with clear reproducible steps.
+    \item Completed 100+ hands-on labs on public learning platforms in security and networking.
+  \resumeSubHeadingListEnd
+
+\end{document}

@@ -1,21 +1,86 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Upload Resume</title>
+    <meta charset="UTF-8">
+    <title>Resume Analyzer & LaTeX Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f8f9fa;
+            color: #222;
+            padding: 30px;
+            max-width: 800px;
+            margin: auto;
+        }
+        h2, h3 {
+            color: #333;
+        }
+        form {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            margin-bottom: 25px;
+        }
+        input[type="file"] {
+            display: block;
+            margin: 10px 0;
+        }
+        button {
+            background-color: #007bff;
+            border: none;
+            color: white;
+            padding: 10px 18px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        pre {
+            background: #1e1e1e;
+            color: #00ff88;
+            padding: 15px;
+            border-radius: 6px;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .error {
+            background: #ffe3e3;
+            color: #b00020;
+            padding: 10px;
+            border-radius: 5px;
+        }
+    </style>
 </head>
+
 <body>
-  <h2>Upload Resume (PDF/DOCX)</h2>
+    <h2>Upload Resume (PDF / DOCX)</h2>
 
-  <form action="{% url 'upload_resume' %}" method="post" enctype="multipart/form-data">
-    {% csrf_token %}
-    <input type="file" name="resume" accept=".pdf,.docx" required>
-    <button type="submit">Upload</button>
-  </form>
+    <form action="{% url 'upload_resume' %}" method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="file" name="resume" accept=".pdf,.docx" required>
+        <button type="submit">Upload & Analyze</button>
+    </form>
 
-  {% if result %}
-  <h3>Extracted Structure:</h3>
-  <pre>{{ result|safe }}</pre>
-  {% endif %}
+    {% if error %}
+        <div class="error">{{ error }}</div>
+    {% endif %}
 
+    {% if result %}
+        <h3>ATS Review Result</h3>
+        <pre>{{ result|safe }}</pre>
+
+        <form action="{% url 'generate_latex' %}" method="post">
+            {% csrf_token %}
+            <input type="hidden" name="resume_text" value="{{ result|escape }}">
+            <button type="submit" style="background-color: #28a745;">Generate LaTeX Resume</button>
+        </form>
+    {% endif %}
+
+    {% if latex %}
+        <h3>Generated LaTeX Code</h3>
+        <pre>{{ latex|safe }}</pre>
+    {% endif %}
 </body>
 </html>
