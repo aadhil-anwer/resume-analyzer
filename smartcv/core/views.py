@@ -1,7 +1,8 @@
 import os
 import json
 import re
-
+import tempfile
+import subprocess
 from django.shortcuts import render
 from django.views.decorators.http import require_POST
 from .models import ResumeUpload
@@ -137,11 +138,50 @@ def upload_resume_with_jd(request):
     return render(request, "core/jd_upload.html", {"result": json.dumps(result, ensure_ascii=False, indent=2)})
 
 
+def sanitize_tex(tex):
+    dangerous = [
+        r'\\write18', r'\\input', r'\\include', r'\\openout',
+        r'\\read', r'\\immediate', r'\\special', r'\\catcode',
+        r'\\every', r'\\loop', r'\\csname', r'\\expandafter'
+    ]
+    for d in dangerous:
+        tex = re.sub(d, '', tex, flags=re.IGNORECASE)
+    return tex
+
+
+
+
+
+def compile_tex_to_pdf(tex_content):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tex_file = os.path.join(tmpdir, "resume.tex")
+        with open(tex_file, "w", encoding="utf-8") as f:
+            f.write(tex_content)
+
+        # Run tectonic (safe, no shell escape)
+        result = subprocess.run(
+            ["tectonic", tex_file, "--outdir", tmpdir],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=120  # safety timeout
+        )
+
+        if result.returncode != 0:
+            raise Exception(f"Compilation failed: {result.stderr.decode()}")
+
+        pdf_path = os.path.join(tmpdir, "resume.pdf")
+        with open(pdf_path, "rb") as f:
+            return f.read()
+
+
+from django.http import HttpResponse
+import json
+
 @require_POST
 def generate_latex_view(request):
     """
-    Takes AI review result and resume text, then generates LaTeX using GPT-5-mini.
-    (View-only — does NOT save to DB)
+    Takes AI review result and resume text, generates LaTeX using GPT-5-mini,
+    compiles it to PDF via Tectonic, and returns it for download.
     """
     try:
         result_json = request.POST.get("resume_text")
@@ -152,14 +192,14 @@ def generate_latex_view(request):
         result_data = json.loads(result_json)
         ai_suggestions = result_data.get("ai_analysis", {})
 
-        # ✅ Load the latest uploaded resume (without saving anything)
+        # ✅ Load the latest uploaded resume
         instance = ResumeUpload.objects.last()
         if not instance or not instance.file:
             return render(request, "core/upload.html", {"error": "No uploaded resume file found."})
 
         file_path = instance.file.path
 
-        # ✅ Re-extract resume text
+        # ✅ Extract resume text
         if file_path.lower().endswith(".pdf"):
             resume_text = extract_text_from_pdf(file_path)
         elif file_path.lower().endswith(".docx"):
@@ -169,18 +209,16 @@ def generate_latex_view(request):
 
         resume_text = normalize_text(resume_text)
 
-        # ✅ Generate the LaTeX using GPT-5-mini
+        # ✅ Generate LaTeX via GPT-5-mini
         latex_output = generate_latex_resume(resume_text, ai_suggestions)
 
-        # ✅ Just render the LaTeX on screen — no save
-        return render(
-            request,
-            "core/upload.html",
-            {
-                "result": json.dumps(result_data, indent=2, ensure_ascii=False),
-                "latex": latex_output,
-            },
-        )
+        # ✅ Compile to PDF (using your secure function)
+        pdf_bytes = compile_tex_to_pdf(latex_output)
+
+        # ✅ Send PDF to user for download
+        response = HttpResponse(pdf_bytes, content_type="application/pdf")
+        response["Content-Disposition"] = 'attachment; filename="resume.pdf"'
+        return response
 
     except Exception as e:
-        return render(request, "core/upload.html", {"error": f"Error generating LaTeX: {str(e)}"})
+        return render(request, "core/upload.html", {"error": f"Error generating PDF: {str(e)}"})
