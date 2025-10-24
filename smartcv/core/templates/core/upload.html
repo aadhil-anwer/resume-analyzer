@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Upload Resume</title>
+</head>
+<body>
+  <h2>Upload Resume (PDF/DOCX)</h2>
+
+  <form action="{% url 'upload_resume' %}" method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <input type="file" name="resume" accept=".pdf,.docx" required>
+    <button type="submit">Upload</button>
+  </form>
+
+  {% if result %}
+  <h3>Extracted Structure:</h3>
+  <pre>{{ result|safe }}</pre>
+  {% endif %}
+
+</body>
+</html>

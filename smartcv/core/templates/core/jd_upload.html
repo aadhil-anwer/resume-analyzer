@@ -1,0 +1,24 @@
+<h2>Resume + Job Description ATS Match</h2>
+
+{% if error %}
+  <p style="color:red;">{{ error }}</p>
+{% endif %}
+
+<form method="POST" action="{% url 'upload_resume_with_jd' %}" enctype="multipart/form-data">
+  {% csrf_token %}
+  <label>Upload Resume (PDF or DOCX):</label><br>
+  <input type="file" name="resume" accept=".pdf,.docx" required><br><br>
+
+  <label>Paste Job Description:</label><br>
+  <textarea name="jd" rows="10" cols="80" placeholder="Paste the JD here..." required></textarea><br><br>
+
+  <button type="submit">Analyze Match</button>
+</form>
+
+{% if result %}
+  <h3>Result:</h3>
+  <pre>{{ result }}</pre>
+{% endif %}
+
+<br>
+<a href="{% url 'upload_page' %}">← Back to Resume-only Analysis</a>
