@@ -6,6 +6,7 @@ import subprocess
 from django.shortcuts import render
 from django.views.decorators.http import require_POST
 from .models import ResumeUpload
+from django.utils.safestring import mark_safe
 
 
 from django.views.decorators.csrf import csrf_protect
@@ -72,7 +73,12 @@ def upload_resume(request):
         }
         instance.result_json = result
         instance.save()
-        return render(request, "core/upload.html", {"result": json.dumps(result, indent=2)})
+        
+        return render(
+    request,
+    "core/upload.html",
+    {"result": mark_safe(json.dumps(result, ensure_ascii=False))}
+)
 
     # 2️⃣ Send to Gemini for ATS & quality scoring
     ai_result = gemini_resume_analysis(text)
@@ -177,11 +183,18 @@ def compile_tex_to_pdf(tex_content):
 from django.http import HttpResponse
 import json
 
+import base64
+import tempfile
+from django.http import HttpResponse
+from django.views.decorators.http import require_POST
+from django.shortcuts import render
+from .models import ResumeUpload
+
 @require_POST
 def generate_latex_view(request):
     """
     Takes AI review result and resume text, generates LaTeX using GPT-5-mini,
-    compiles it to PDF via Tectonic, and returns it for download.
+    compiles it to PDF via Tectonic, and displays it inline before download.
     """
     try:
         result_json = request.POST.get("resume_text")
@@ -192,7 +205,7 @@ def generate_latex_view(request):
         result_data = json.loads(result_json)
         ai_suggestions = result_data.get("ai_analysis", {})
 
-        # ✅ Load the latest uploaded resume
+        # ✅ Get latest uploaded resume
         instance = ResumeUpload.objects.last()
         if not instance or not instance.file:
             return render(request, "core/upload.html", {"error": "No uploaded resume file found."})
@@ -209,16 +222,25 @@ def generate_latex_view(request):
 
         resume_text = normalize_text(resume_text)
 
-        # ✅ Generate LaTeX via GPT-5-mini
+        # ✅ Generate LaTeX and compile to PDF
         latex_output = generate_latex_resume(resume_text, ai_suggestions)
-
-        # ✅ Compile to PDF (using your secure function)
         pdf_bytes = compile_tex_to_pdf(latex_output)
 
-        # ✅ Send PDF to user for download
-        response = HttpResponse(pdf_bytes, content_type="application/pdf")
-        response["Content-Disposition"] = 'attachment; filename="resume.pdf"'
-        return response
+        # ✅ Temporarily save PDF to /tmp (secure, auto-deleted on restart)
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+            tmp.write(pdf_bytes)
+            tmp.flush()
+            pdf_path = tmp.name
+
+        # ✅ Encode to Base64 for inline rendering
+        pdf_base64 = base64.b64encode(pdf_bytes).decode("utf-8")
+        pdf_data_uri = f"data:application/pdf;base64,{pdf_base64}"
+
+        # ✅ Render the same upload page, now with embedded preview
+        return render(request, "core/upload.html", {
+            "pdf_data_uri": pdf_data_uri,
+            "success": True
+        })
 
     except Exception as e:
         return render(request, "core/upload.html", {"error": f"Error generating PDF: {str(e)}"})

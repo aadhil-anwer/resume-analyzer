@@ -1,38 +1,39 @@
-import json
-import google.generativeai as genai
-from dotenv import load_dotenv
-from datetime import datetime
 import os
-today = datetime.now().strftime("%B %d, %Y")
+import json
+from datetime import datetime
+from openai import OpenAI
+from dotenv import load_dotenv
+from core.utils.clean_ai_output import clean_gpt_response 
+
 load_dotenv()
-# ------------------ GEMINI ANALYSIS ------------------
+today = datetime.now().strftime("%B %d, %Y")
+
+
 def gemini_resume_analysis(text: str):
     """
-    Send resume to Gemini 2.5 Pro for ATS, grammar, and impact scoring.
-    Includes safe fallbacks and structured JSON enforcement.
+    Analyze a resume using GPT-5 and return clean, properly escaped JSON for the frontend.
+    Handles malformed, escaped, or invalid model outputs gracefully.
     """
-    api_key = os.getenv("GEMINI_API_KEY")
 
-    # Handle missing API key gracefully
+    api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         return {
-            "error": "Gemini API key not found in environment. Set GEMINI_API_KEY to enable AI analysis.",
-            "offline_fallback": {
+            "error": "OpenAI API key not found in environment. Set OPENAI_API_KEY to enable AI analysis.",
+            "ai_analysis": {
                 "ats_score": 0,
                 "grammar_feedback": "AI not configured — no grammar analysis performed.",
                 "impact_feedback": "AI not configured — no impact analysis performed.",
                 "tone_feedback": "N/A",
                 "keyword_feedback": "N/A",
-                "overall_recommendations": [
-                    "Set up your GEMINI_API_KEY environment variable to enable full AI scoring."
-                ],
+                "overall_recommendations": "Set OPENAI_API_KEY to enable full AI scoring.",
+                "confidence_score": 0.0,
             },
         }
 
     try:
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel("models/gemini-2.5-pro")
+        client = OpenAI(api_key=api_key)
 
+        # ------------------ GPT-5 PROMPT ------------------
         prompt = f"""
 SYSTEM ROLE:
 You are a Fortune 100 recruiter and Certified Professional Resume Writer with 15+ years of experience evaluating resumes for large corporate hiring pipelines. You rigorously assess resumes based on globally recognized professional, structural, and ATS (Applicant Tracking System) standards.
@@ -65,7 +66,7 @@ WEIGHTED EVALUATION MATRIX (TOTAL 100 POINTS):
 3. **Experience & Impact (STAR/PAR Framework) (30%)**
    - Every bullet must start with a strong and unique **action verb**.
    - Quantifiable results (%, $, count, time saved, efficiency gained, etc.) required in ≥50% of bullets.
-   - Avoid vague duty-based phrasing (“responsible for,” “helped with”). Emphasize measurable outcomes.
+   - Avoid vague duty-based phrasing ("responsible for," "helped with"). Emphasize measurable outcomes.
    - Context must clarify scope (industry, org size, project type, or objective).
    - Deduct for generic, unverifiable, or filler content.
 
@@ -78,12 +79,12 @@ WEIGHTED EVALUATION MATRIX (TOTAL 100 POINTS):
 5. **Tone, Professionalism & Integrity (10%)**
    - Maintain a confident, recruiter-friendly, and formal tone.
    - Avoid first-person language or informal phrasing.
-   - Penalize buzzword-stuffing (“highly motivated,” “results-driven,” etc.).
+   - Penalize buzzword-stuffing ("highly motivated," "results-driven," etc.).
    - Detect and flag copied job description phrases or inflated achievements.
 
 6. **Contact & File Standards (5%)**
    - Email must be professional (e.g., Gmail/Outlook); reject unprofessional handles.
-   - Location format: “City, State” or short equivalent only.
+   - Location format: "City, State" or short equivalent only.
    - Penalize for filenames including dates, roles, or extraneous identifiers.
 
 SCORING GUIDELINES (DO NOT BE LIBERAL):
@@ -124,41 +125,53 @@ Resume:
 
 """
 
-    
 
+        # ------------------ GPT-5 CALL ------------------
+        response = client.chat.completions.create(
+            model="gpt-5",
+            messages=[
+                {"role": "system", "content": "You are an AI resume analysis assistant."},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=1,
+        )
 
-        response = model.generate_content(
-        prompt,
-        generation_config={
-        "max_output_tokens": 8192,
-        "temperature": 0.2,       # stable responses
-        "top_p": 0.9,
-        
-    }
-)
-        if hasattr(response, "usage_metadata"):
-            usage = response.usage_metadata
-            print("\n===== GEMINI TOKEN USAGE =====")
-            print(f"Input tokens  : {usage.prompt_token_count}")
-            print(f"Output tokens : {usage.candidates_token_count}")
-            print(f"Total tokens  : {usage.total_token_count}")
-            print("================================\n")
-        else:
-            print("⚠️ No token usage metadata available in response.")
-        # Safely parse model output
-        raw = getattr(response, "text", "").strip()
+        raw = response.choices[0].message.content.strip()
+        print("\n🔍 RAW GPT-5 RESPONSE:\n", raw, "\n")
+
+        # ------------------ SAFE JSON PARSING ------------------
+        if raw.startswith("```json"):
+            raw = raw.replace("```json", "").replace("```", "").strip()
+
+        parsed = None
         try:
-            return json.loads(raw)
-            
-        except Exception:
-            return {
-                "error": "Gemini response not valid JSON.",
-                "raw_output": raw  # partial output for debugging
-            }
-    
-        
+            parsed = json.loads(raw)
+        except json.JSONDecodeError:
+            try:
+                parsed = json.loads(json.loads(raw))
+            except Exception as e:
+                print(f"⚠️ Failed to decode GPT-5 response: {e}")
+                return {"error": "GPT-5 response not valid JSON.", "raw_output": raw}
+
+        if not isinstance(parsed, dict):
+            return {"error": "Unexpected GPT-5 output structure.", "raw_output": raw}
+
+        ai_analysis = parsed.get("ai_analysis", parsed)
+        defaults = {
+            "ats_score": 0,
+            "grammar_feedback": "",
+            "impact_feedback": "",
+            "tone_feedback": "",
+            "keyword_feedback": "",
+            "overall_recommendations": "",
+            "confidence_score": 0.0,
+        }
+        ai_analysis= clean_gpt_response(ai_analysis)
+        for key, val in defaults.items():
+            ai_analysis.setdefault(key, val)
+
+        return {"ai_analysis": ai_analysis}
 
     except Exception as e:
-        return {"error": f"Gemini 2.5 Pro API call failed: {str(e)}"}
-
-
+        print("❌ GPT-5 API ERROR:", str(e))
+        return {"error": f"GPT-5 API call failed: {str(e)}"}
