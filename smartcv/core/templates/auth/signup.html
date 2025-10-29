@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Sign Up • Resume Rater{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-md-6">
+      <!-- Sign Up Card -->
+      <div class="card-custom">
+        <div class="text-center mb-4">
+          <div class="feature-icon mx-auto mb-3" style="width: 70px; height: 70px;">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M16 7C16 9.20914 14.2091 11 12 11C9.79086 11 8 9.20914 8 7C8 4.79086 9.79086 3 12 3C14.2091 3 16 4.79086 16 7Z"
+                    stroke="white" stroke-width="2"/>
+              <path d="M12 14C8.13401 14 5 17.134 5 21H19C19 17.134 15.866 14 12 14Z"
+                    stroke="white" stroke-width="2"/>
+            </svg>
+          </div>
+          <h2 class="text-gradient mb-2">Join Resume Rater</h2>
+          <p class="text-muted">Create your free account to get started</p>
+        </div>
+
+        {% if error %}
+        <div class="alert alert-danger text-center" role="alert">
+          {{ error }}
+        </div>
+        {% endif %}
+
+        <form method="post">
+          {% csrf_token %}
+
+          <!-- Username -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Username</label>
+            <input type="text" name="username" class="form-control" placeholder="Enter a username" required>
+          </div>
+
+          <!-- Password -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Password</label>
+            <input type="password" name="password" class="form-control" placeholder="Enter a password" required>
+          </div>
+
+          <!-- Confirm Password -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Confirm Password</label>
+            <input type="password" name="password2" class="form-control" placeholder="Re-enter password" required>
+          </div>
+
+          <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold">
+            Create Account
+          </button>
+        </form>
+
+        <div class="text-center mt-4">
+          <p class="text-muted mb-2">Already have an account?</p>
+          <a href="{% url 'login' %}" class="btn btn-outline-primary w-100">
+            Sign In
+          </a>
+        </div>
+      </div>
+
+      <!-- Security note -->
+      <div class="text-center mt-4 text-muted small">
+        <svg class="me-1" width="16" height="16" viewBox="0 0 24 24" fill="none"
+             xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 15V17M6 21H18C19.1046 21 20 20.1046 20 19V13C20 11.8954 19.1046 11 18 11H6C4.89543 11 4 11.8954 4 13V19C4 20.1046 4.89543 21 6 21ZM16 11V7C16 4.79086 14.2091 3 12 3C9.79086 3 8 4.79086 8 7V11H16Z"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Your data is securely protected.
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

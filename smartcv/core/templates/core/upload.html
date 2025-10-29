@@ -1,448 +1,205 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Resume Analyzer & LaTeX Generator</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+{% extends "base.html" %}
+{% block title %}Upload & Analyze Resume • Resume Rater{% endblock %}
 
-  <!-- Bootstrap 5 -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+{% block content %}
+<div class="container py-5">
 
-  <!-- Fonts -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-
-  <style>
-    :root {
-      --bg: #0b0b0b;
-      --surface: #141414;
-      --border: #1e1e1e;
-      --muted: #a1a1aa;
-      --light: #fafafa;
-      --accent: #8b5cf6;
-      --radius: 16px;
-      --transition: 0.3s ease;
-    }
-
-    body {
-      background: var(--bg);
-      color: var(--light);
-      font-family: 'Inter', sans-serif;
-      min-height: 100vh;
-      padding: 60px 15px;
-      overflow-x: hidden;
-    }
-
-    h2 {
-      font-size: 2.4rem;
-      font-weight: 700;
-      background: linear-gradient(90deg, #8b5cf6, #6366f1);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      margin-bottom: 0.75rem;
-      text-align: center;
-    }
-
-    p.subtitle {
-      color: var(--muted);
-      text-align: center;
-      max-width: 540px;
-      line-height: 1.6;
-      margin: 0 auto 50px;
-      font-size: 1.05rem;
-      opacity: 0.9;
-    }
-
-    .upload-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 40px 35px;
-      max-width: 480px;
-      width: 100%;
-      box-shadow: 0 0 35px rgba(139, 92, 246, 0.15);
-      text-align: center;
-      backdrop-filter: blur(10px);
-      margin: 0 auto;
-    }
-
-    .file-label {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      padding: 14px 28px;
-      border-radius: 50px;
-      background: #1c1c1c;
-      color: var(--muted);
-      border: 1px solid #2a2a2a;
-      font-size: 0.95rem;
-      cursor: pointer;
-      transition: var(--transition);
-      width: 100%;
-      max-width: 300px;
-    }
-
-    .file-label:hover {
-      background: #1f1f1f;
-      color: var(--light);
-      border-color: var(--accent);
-      box-shadow: 0 0 16px rgba(139, 92, 246, 0.25);
-    }
-
-    .btn-primary {
-      background: linear-gradient(90deg, var(--accent), #a78bfa);
-      border: none;
-      border-radius: 50px;
-      padding: 14px 32px;
-      font-weight: 600;
-      margin-top: 24px;
-      width: 100%;
-      max-width: 300px;
-    }
-
-    .btn-success {
-      background: linear-gradient(90deg, #22c55e, #16a34a);
-      border: none;
-      border-radius: 50px;
-      padding: 14px 32px;
-      font-weight: 600;
-      margin-top: 20px;
-      width: 100%;
-      max-width: 300px;
-    }
-
-    .error {
-      background: #2b0f0f;
-      color: #ff6b6b;
-      padding: 14px;
-      border-radius: 10px;
-      margin: 25px auto;
-      text-align: center;
-      max-width: 480px;
-      box-shadow: 0 0 20px rgba(255, 107, 107, 0.25);
-      font-weight: 500;
-    }
-
-    .report-container {
-      background: var(--surface);
-      border-radius: var(--radius);
-      padding: 45px;
-      margin: 60px auto;
-      max-width: 720px;
-      border: 1px solid var(--border);
-      box-shadow: 0 0 45px rgba(139, 92, 246, 0.15);
-      animation: fadeInUp 0.8s ease-out;
-    }
-
-    .score-wrapper {
-      position: relative;
-      width: 160px;
-      height: 160px;
-      margin: 0 auto 35px;
-    }
-
-    .progress-ring { transform: rotate(-90deg); }
-    .ring-bg { fill: none; stroke: #2a2a2a; stroke-width: 12; }
-    .ring-progress {
-      fill: none; stroke-width: 12; stroke-linecap: round;
-      transition: stroke-dashoffset 1.4s ease-out, stroke 0.8s ease;
-      filter: drop-shadow(0 0 12px rgba(139, 92, 246, 0.35));
-    }
-
-    .score-text {
-      position: absolute; top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      font-size: 2.1rem; font-weight: 700;
-      color: white; text-shadow: 0 0 15px rgba(255,255,255,0.15);
-    }
-
-    .section {
-      background: #101010;
-      border-radius: 14px;
-      padding: 20px 24px;
-      margin-bottom: 18px;
-      border: 1px solid #1f1f1f;
-      opacity: 0;
-      transform: translateY(20px);
-    }
-    .section h4 { color: #a78bfa; font-weight: 600; font-size: 1.05rem; margin-bottom: 8px; }
-    .section p { color: #d4d4d8; font-size: 0.95rem; line-height: 1.6; }
-
-    .highlight { border: 1px solid var(--accent); box-shadow: 0 0 18px rgba(139, 92, 246, 0.3); }
-
-    iframe {
-      border: none;
-      width: 100%;
-      height: 600px;
-      border-radius: var(--radius);
-      background: #1a1a1a;
-      transition: transform 0.4s ease, box-shadow 0.4s ease;
-    }
-    iframe:hover { transform: scale(1.005); box-shadow: 0 0 35px rgba(139, 92, 246, 0.25); }
-
-    footer { color: var(--muted); font-size: 0.9rem; margin-top: 90px; text-align: center; }
-    footer span { color: var(--accent); font-weight: 600; }
-
-    .typing-text {
-      border-right: 2px solid var(--accent);
-      white-space: nowrap;
-      overflow: hidden;
-      display: inline-block;
-    }
-
-    .fade-in {
-      animation: fadeIn 0.8s ease forwards;
-    }
-
-    .slide-in-left {
-      animation: slideInLeft 0.8s ease forwards;
-    }
-
-    .slide-in-right {
-      animation: slideInRight 0.8s ease forwards;
-    }
-
-    .pulse {
-      animation: pulse 2s infinite;
-    }
-
-    .floating {
-      animation: floating 3s ease-in-out infinite;
-    }
-
-    .loading-dots {
-      display: inline-block;
-    }
-    .loading-dots span {
-      animation: loadingDots 1.4s infinite ease-in-out both;
-    }
-    .loading-dots span:nth-child(1) { animation-delay: -0.32s; }
-    .loading-dots span:nth-child(2) { animation-delay: -0.16s; }
-
-    @keyframes fadeInUp { 
-      from { opacity: 0; transform: translateY(20px); } 
-      to { opacity: 1; transform: translateY(0); } 
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
-
-    @keyframes slideInLeft {
-      from { opacity: 0; transform: translateX(-30px); }
-      to { opacity: 1; transform: translateX(0); }
-    }
-
-    @keyframes slideInRight {
-      from { opacity: 0; transform: translateX(30px); }
-      to { opacity: 1; transform: translateX(0); }
-    }
-
-    @keyframes pulse {
-      0% { box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.4); }
-      70% { box-shadow: 0 0 0 10px rgba(139, 92, 246, 0); }
-      100% { box-shadow: 0 0 0 0 rgba(139, 92, 246, 0); }
-    }
-
-    @keyframes floating {
-      0% { transform: translate(0, 0px); }
-      50% { transform: translate(0, -10px); }
-      100% { transform: translate(0, 0px); }
-    }
-
-    @keyframes loadingDots {
-      0%, 80%, 100% { transform: scale(0); }
-      40% { transform: scale(1.0); }
-    }
-
-    @keyframes typing {
-      from { width: 0 }
-      to { width: 100% }
-    }
-
-    @keyframes blink {
-      0%, 100% { border-color: transparent }
-      50% { border-color: var(--accent) }
-    }
-
-    @media (max-width: 768px) {
-      h2 { font-size: 2rem; }
-      .upload-card { padding: 30px 20px; }
-      .report-container { padding: 30px 20px; }
-      iframe { height: 400px; }
-    }
-
-    @media (max-width: 576px) {
-      body { padding: 30px 10px; }
-      h2 { font-size: 1.8rem; }
-      .upload-card { padding: 25px 15px; }
-      .report-container { padding: 25px 15px; }
-      iframe { height: 300px; }
-    }
-  </style>
-</head>
-
-<body>
-  <div class="text-center mb-5">
+  <!-- Page Header -->
+  <div class="text-center mb-4">
     <h2 id="typing-title" class="typing-text"></h2>
-    <p class="subtitle fade-in">Upload your resume and let AI craft a LaTeX version that's calm, precise, and unforgettable.</p>
+    <p class="subtitle text-muted">
+      Upload your resume and let AI craft a LaTeX version that's calm, precise, and unforgettable.
+    </p>
   </div>
 
-  <div class="upload-card floating">
-    <form action="{% url 'upload_resume' %}" method="post" enctype="multipart/form-data">
+  <!-- Upload Card -->
+  <div class="upload-card mx-auto">
+    <form action="{% url 'upload_resume' %}" method="post" enctype="multipart/form-data" id="upload-form">
       {% csrf_token %}
-      <div class="mb-4">
-        <label for="resume" class="file-label pulse">📄 Choose your resume</label>
+      <div class="mb-3">
+        <label for="resume" class="file-label" id="file-label">📄 Choose your resume</label>
         <input id="resume" type="file" name="resume" accept=".pdf,.docx" required hidden>
         <div id="file-name" class="file-name mt-2 text-muted">No file chosen</div>
       </div>
+
       <button type="submit" class="btn btn-primary">Upload & Analyze</button>
     </form>
   </div>
 
   {% if error %}
-    <div class="error slide-in-left">{{ error }}</div>
+    <div class="alert alert-danger mt-4 text-center">{{ error }}</div>
   {% endif %}
 
-  {% if result %}
-    <pre style="display:none;">{{ result|safe }}</pre>
-    <div id="analysis"></div>
-    <div class="text-center mt-4">
-      <form action="{% url 'generate_latex' %}" method="post">
-        {% csrf_token %}
-        <input type="hidden" name="resume_text" value="{{ result|escape }}">
-        <button type="submit" class="btn btn-success">Generate LaTeX Resume</button>
-      </form>
-    </div>
-  {% endif %}
+  <!-- Hidden raw server result -->
+  <textarea id="raw-result" hidden>{{ result|default_if_none:""|escape }}</textarea>
+
+  <!-- Generate LaTeX form -->
+  <div id="generate-wrapper" class="text-center mt-3" style="display:none;">
+    <form action="{% url 'generate_latex' %}" method="post" id="latex-form">
+      {% csrf_token %}
+      <input type="hidden" name="resume_text" id="resume_text_input" value="">
+      <button type="submit" class="btn btn-success">Generate LaTeX Resume</button>
+    </form>
+  </div>
+
+  <!-- Placeholder for analysis results -->
+  <div id="analysis-root" class="mt-5"></div>
 
   {% if pdf_data_uri %}
-    <div class="report-container mt-5">
-      <h3 class="text-center" style="font-weight:600;background:linear-gradient(90deg,#8b5cf6,#6366f1);
-      -webkit-background-clip:text;-webkit-text-fill-color:transparent;">Your Generated LaTeX Resume</h3>
-      <iframe src="{{ pdf_data_uri }}"></iframe>
-      <div class="text-center mt-3">
-        <a href="{{ pdf_data_uri }}" download="resume.pdf" class="btn btn-success">⬇️ Download PDF</a>
-      </div>
+  <div class="report-container mt-5">
+    <h3 class="text-center gradient-text">Your Generated LaTeX Resume</h3>
+    <iframe src="{{ pdf_data_uri }}"></iframe>
+    <div class="text-center mt-3">
+      <a href="{{ pdf_data_uri }}" download="resume.pdf" class="btn btn-success">⬇️ Download PDF</a>
     </div>
+  </div>
   {% endif %}
+</div>
 
-  <footer class="fade-in">Designed with calm precision • <span>Resume Rater</span></footer>
+<!-- Floating Notification -->
+<div class="analysis-notification" id="analysis-notification">
+  <div class="notification-content">
+    <div class="notification-icon">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10
+                 10-4.48 10-10S17.52 2 12 2z" fill="white"/>
+        <path d="M10 14.59L16.59 8L18 9.41L10 17.41
+                 L6 13.41L7.41 12L10 14.59Z" fill="white"/>
+      </svg>
+    </div>
+    <div class="notification-text">
+      <h5 id="notification-title">Analyzing Your Resume</h5>
+      <p id="notification-message">This may take a few moments...</p>
+    </div>
+  </div>
+  <div class="notification-progress">
+    <div class="notification-progress-bar" id="notification-progress-bar"></div>
+  </div>
+  <div class="loading-dots"><span></span><span></span><span></span></div>
+</div>
+{% endblock %}
 
-  <<script>
-  // Typing animation for title
+{% block extra_scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+
+  /* Typing Animation */
   const titleText = "Focus on What Matters";
-  const typingTitle = document.getElementById('typing-title');
-  let charIndex = 0;
+  const titleEl = document.getElementById("typing-title");
+  let i = 0;
+  (function type() {
+    if (i < titleText.length) {
+      titleEl.textContent += titleText.charAt(i++);
+      setTimeout(type, 80);
+    } else titleEl.style.borderRight = "none";
+  })();
 
-  function typeTitle() {
-    if (charIndex < titleText.length) {
-      typingTitle.textContent += titleText.charAt(charIndex);
-      charIndex++;
-      setTimeout(typeTitle, 100);
-    } else {
-      typingTitle.style.borderRight = 'none';
-    }
+  /* File input logic */
+  const fileInput = document.getElementById("resume");
+  const fileLabel = document.getElementById("file-label");
+  const fileName = document.getElementById("file-name");
+  fileLabel.addEventListener("click", () => fileInput.click());
+  fileInput.addEventListener("change", e => fileName.textContent = e.target.files[0]?.name || "No file chosen");
+
+  /* Show/Hide notifications */
+  function showNotification(title, msg) {
+    document.getElementById("notification-title").textContent = title;
+    document.getElementById("notification-message").textContent = msg;
+    const n = document.getElementById("analysis-notification");
+    n.style.display = "block";
+    setTimeout(() => n.classList.add("show"), 50);
+  }
+  function hideNotification() {
+    const n = document.getElementById("analysis-notification");
+    n.classList.remove("show");
+    setTimeout(() => n.style.display = "none", 400);
   }
 
-  // Start typing animation after page loads
-  document.addEventListener("DOMContentLoaded", () => {
-    typeTitle();
-
-    // File input handling
-    const fileInput = document.getElementById('resume');
-    const fileNameDisplay = document.getElementById('file-name');
-    fileInput.addEventListener('change', () => {
-      fileNameDisplay.textContent = fileInput.files[0]?.name || 'No file chosen';
-    });
-
-    // Parse and display analysis if available
-    const pre = document.querySelector("pre");
-    const container = document.getElementById("analysis");
-    if (!pre) return;
-
-    try {
-      // 🧠 STEP 1: Clean GPT output
-      let raw = pre.textContent
-        .replaceAll("&quot;", '"')
-        .replaceAll("\n", " ")
-        .replace(/```json|```/gi, "")
-        .replace(/^🔍 RAW GPT-5 RESPONSE:/i, "")
-        .replace(/^.*?{/, "{") // force start at first valid JSON
-        .trim();
-
-      // 🧠 STEP 2: Try multiple parsing attempts
-      let parsed;
-      try {
-        parsed = JSON.parse(raw);
-      } catch {
-        const jsonMatch = raw.match(/{[\s\S]*}/);
-        if (jsonMatch) parsed = JSON.parse(jsonMatch[0]);
-      }
-
-      if (typeof parsed === "string") parsed = JSON.parse(parsed);
-
-      // 🧠 STEP 3: Extract analysis safely
-      const analysis =
-        parsed.ai_analysis?.ai_analysis ||
-        parsed.ai_analysis ||
-        parsed.local_check ||
-        parsed;
-      const score = analysis.ats_score ?? 0;
-      const confidence = (analysis.confidence_score * 100 || 0).toFixed(1);
-      const safe = k => analysis[k] || "No feedback provided.";
-
-      // 🧠 STEP 4: Render results beautifully
-      const ringColor =
-        score >= 80 ? "#22c55e" : score >= 60 ? "#facc15" : "#ef4444";
-      const circumference = 2 * Math.PI * 65;
-
-      container.innerHTML = `
-        <div class="report-container text-center">
-          <div class="score-wrapper mx-auto">
-            <svg class="progress-ring" width="160" height="160">
-              <circle class="ring-bg" cx="80" cy="80" r="65"></circle>
-              <circle class="ring-progress" cx="80" cy="80" r="65"
-                stroke="${ringColor}"
-                stroke-dasharray="${circumference}"
-                stroke-dashoffset="${circumference}">
-              </circle>
-            </svg>
-            <div class="sc<ore-text">${score}%</div>
-            <div class="text-muted">ATS Score</div>
-          </div>
-
-          <div class="section"><h4>📝 Grammar & Clarity</h4><p>${safe("grammar_feedback")}</p></div>
-          <div class="section"><h4>⚡ Impact & Action</h4><p>${safe("impact_feedback")}</p></div>
-          <div class="section"><h4>🎙️ Tone & Professionalism</h4><p>${safe("tone_feedback")}</p></div>
-          <div class="section"><h4>🧩 Keyword Relevance</h4><p>${safe("keyword_feedback")}</p></div>
-          <div class="section highlight"><h4>💡 Overall Recommendations</h4><p>${safe("overall_recommendations")}</p></div>
-          <p class="text-muted mt-3">Confidence Level: ${confidence}%</p>
-        </div>
-      `;
-
-      // 🌀 Animate the ring
-      const ring = container.querySelector(".ring-progress");
-      const offset = (1 - score / 100) * circumference;
-      requestAnimationFrame(() => { ring.style.strokeDashoffset = offset; });
-
-      // 🎬 Animate sections sequentially
-      const sections = container.querySelectorAll('.section');
-      sections.forEach((section, index) => {
-        setTimeout(() => {
-          section.style.opacity = '1';
-          section.style.transform = 'translateY(0)';
-          section.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
-        }, 300 + (index * 200));
-      });
-    } catch (e) {
-      console.error("⚠️ Parsing failed:", e);
-      container.innerHTML = `<div class='error slide-in-left'>⚠️ Failed to parse analysis.</div>`;
-    }
+  /* Upload form progress simulation */
+  document.getElementById("upload-form").addEventListener("submit", () => {
+    showNotification("Uploading Resume", "Processing your file...");
   });
-</script>
 
-</body>
-</html>
+  /* Parse server result (if any) */
+  const raw = document.getElementById("raw-result").value.trim();
+  if (raw) {
+    try {
+      const data = JSON.parse(raw.replaceAll("&quot;", '"'));
+      if (data.status === "PROCESSING") {
+        pollStatus(data.resume_id);
+      } else {
+        renderResult(data);
+      }
+    } catch(e) { console.warn("No JSON result found."); }
+  }
+
+  /* Poll job status */
+  function pollStatus(resumeId) {
+    showNotification("Analyzing Resume", "This may take a few moments...");
+    const progress = document.getElementById("notification-progress-bar");
+    let pct = 0;
+    const interval = setInterval(() => {
+      pct += Math.random() * 10;
+      if (pct > 90) pct = 90;
+      progress.style.width = pct + "%";
+    }, 800);
+
+    const poll = async () => {
+      try {
+        const res = await fetch(`/check-status/${resumeId}/`);
+        const data = await res.json();
+        if (data.status && data.status !== "PROCESSING") {
+          clearInterval(interval);
+          progress.style.width = "100%";
+          renderResult(data);
+          hideNotification();
+        } else {
+          setTimeout(poll, 4000);
+        }
+      } catch (err) {
+        console.error(err);
+        setTimeout(poll, 5000);
+      }
+    };
+    poll();
+  }
+
+  /* Render AI analysis results */
+  function renderResult(parsed) {
+    const root = document.getElementById("analysis-root");
+    root.innerHTML = "";
+    if (!parsed || !parsed.ai_analysis) {
+      root.innerHTML = "<div class='alert alert-warning'>⚠️ No analysis available.</div>";
+      return;
+    }
+    const ai = parsed.ai_analysis;
+    const score = ai.ats_score || 0;
+    const color = score >= 80 ? "#22c55e" : score >= 60 ? "#facc15" : "#ef4444";
+
+    root.innerHTML = `
+      <div class="report-container text-center">
+        <svg width="120" height="120" viewBox="0 0 120 120" style="margin-bottom:1rem;">
+          <circle cx="60" cy="60" r="54" stroke="#2a2a2a" stroke-width="10" fill="none"/>
+          <circle cx="60" cy="60" r="54" stroke="${color}" stroke-width="10"
+            fill="none" stroke-dasharray="339.292" stroke-dashoffset="${339.292 - 339.292 * (score / 100)}"
+            style="transition: stroke-dashoffset 1s ease;" />
+          <text x="50%" y="55%" text-anchor="middle" fill="white" font-size="22" dy=".3em">${score}%</text>
+        </svg>
+        <h5 class="text-muted">ATS Score</h5>
+        <div class="section"><h4>📝 Grammar</h4><p>${ai.grammar_feedback || "No feedback provided."}</p></div>
+        <div class="section"><h4>⚡ Impact</h4><p>${ai.impact_feedback || "No feedback provided."}</p></div>
+        <div class="section"><h4>🎙️ Tone</h4><p>${ai.tone_feedback || "No feedback provided."}</p></div>
+        <div class="section highlight"><h4>💡 Recommendations</h4><p>${ai.overall_recommendations || "No feedback provided."}</p></div>
+      </div>
+    `;
+
+    // Reveal LaTeX button
+    const genWrap = document.getElementById("generate-wrapper");
+    const resumeTextInput = document.getElementById("resume_text_input");
+    genWrap.style.display = "block";
+    resumeTextInput.value = JSON.stringify(parsed);
+  }
+
+});
+</script>
+{% endblock %}

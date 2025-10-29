@@ -1,246 +1,306 @@
 import os
 import json
 import re
-import tempfile
-import subprocess
-from django.shortcuts import render
+import django_rq
+from django.shortcuts import render, redirect
 from django.views.decorators.http import require_POST
-from .models import ResumeUpload
-from django.utils.safestring import mark_safe
-
-
-from django.views.decorators.csrf import csrf_protect
-from django.utils.html import escape
-from django.core.exceptions import SuspiciousOperation, ValidationError
+from django.contrib.auth import authenticate, login, logout, get_user_model
+from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
 from django.conf import settings
+from dotenv import load_dotenv
+from datetime import datetime
 
+# Models & Tasks
+from .models import ResumeUpload
+from core.tasks import process_resume_upload, generate_latex_task
 
-from core.utils.extract_text import extract_text_from_docx, extract_text_from_pdf 
+# Utils
+from core.utils.extract_text import extract_text_from_docx, extract_text_from_pdf
 from core.utils.normalize import normalize_text
 from core.utils.local_checks import run_local_checks
 from core.utils.general_cv_analysis import gemini_resume_analysis
 from core.utils.jd_resume_analysis import gemini_resume_jd_match_analysis
-from core.utils.latex_resume_generator import generate_latex_resume
 
-import unicodedata
-import io
-
-import google.generativeai as genai
-from dotenv import load_dotenv
-from datetime import datetime
-
-today = datetime.now().strftime("%B %d, %Y")
 load_dotenv()
+today = datetime.now().strftime("%B %d, %Y")
+User = get_user_model()
 
-# ------------------ ROUTES ------------------
+# -------------------------------------------------------------------
+# PAGES
+# -------------------------------------------------------------------
+
+def home_page(request):
+    """Simple landing/homepage."""
+    return render(request, "core/home.html")
+
 def upload_page(request):
+    """Render resume upload page."""
     return render(request, "core/upload.html")
 
-
 def jd_upload_page(request):
+    """Render job description upload page."""
     return render(request, "core/jd_upload.html")
 
+# -------------------------------------------------------------------
+# RESUME ANALYSIS
+# -------------------------------------------------------------------
 
 @require_POST
-def upload_resume(request):
-    file = request.FILES.get("resume")
-    if not file:
-        return render(request, "core/upload.html", {"error": "No file uploaded"})
-
-    # Save upload
-    instance = ResumeUpload.objects.create(file=file)
-    file_path = instance.file.path
-
-    # Extract & normalize text
-    if file_path.lower().endswith(".pdf"):
-        text = extract_text_from_pdf(file_path)
-    elif file_path.lower().endswith(".docx"):
-        text = extract_text_from_docx(file_path)
-    else:
-        return render(request, "core/upload.html", {"error": "Unsupported file type"})
-
-    text = normalize_text(text)
-
-    # 1️⃣ Run local pre-checks
-    local_check = run_local_checks(text)
-
-    if local_check["failed"]:
-        # if fails, return immediately without AI call
-        result = {
-            "status": "FAILED_PRECHECK",
-            "local_check": local_check,
-            "message": "Fix the flagged issues below before ATS scoring."
-        }
-        instance.result_json = result
-        instance.save()
-        
-        return render(
-    request,
-    "core/upload.html",
-    {"result": mark_safe(json.dumps(result, ensure_ascii=False))}
-)
-
-    # 2️⃣ Send to Gemini for ATS & quality scoring
-    ai_result = gemini_resume_analysis(text)
-
-    # 3️⃣ Combine results
-    result = {
-        "status": "SUCCESS",
-        "local_check": local_check,
-        "ai_analysis": ai_result
-    }
-
-    instance.result_json = result
-    instance.save()
-
-    return render(request, "core/upload.html", {"result": json.dumps(result, ensure_ascii=False, indent=2)})
-
-
-
-
-
-
-
-
-
-
-@require_POST
+@login_required(login_url="/login/")
 def upload_resume_with_jd(request):
+    """
+    Handles resume + job description upload and performs JD-based AI analysis.
+    Saves the result in ResumeUpload.result_json.
+    """
     file = request.FILES.get("resume")
     jd_text = request.POST.get("jd", "").strip()
 
     if not file or not jd_text:
-        return render(request, "core/jd_upload.html", {"error": "Upload resume and paste job description."})
+        return render(request, "core/jd_upload.html", {
+            "error": "Please upload a resume and paste the job description."
+        })
 
-    instance = ResumeUpload.objects.create(file=file)
+    # ✅ Attach resume to logged-in user
+    instance = ResumeUpload.objects.create(file=file, user=request.user)
     file_path = instance.file.path
 
-    # Extract resume text
+    # ✅ Extract resume text safely
     if file_path.lower().endswith(".pdf"):
         resume_text = extract_text_from_pdf(file_path)
     elif file_path.lower().endswith(".docx"):
         resume_text = extract_text_from_docx(file_path)
     else:
-        return render(request, "core/jd_upload.html", {"error": "Unsupported file type"})
+        return render(request, "core/jd_upload.html", {"error": "Unsupported file type."})
 
+    # ✅ Normalize both texts
     resume_text = normalize_text(resume_text)
     jd_text = normalize_text(jd_text)
 
-    # Local pre-check (optional)
+    # ✅ Local static checks
     local_check = run_local_checks(resume_text)
 
-    # AI scoring (resume + JD)
+    # ✅ AI analysis (resume vs JD)
     ai_result = gemini_resume_jd_match_analysis(resume_text, jd_text)
 
+    # ✅ Save full result JSON
     result = {
         "status": "SUCCESS",
         "local_check": local_check,
-        "ai_analysis": ai_result
+        "ai_analysis": ai_result,
     }
-
     instance.result_json = result
     instance.save()
 
-    return render(request, "core/jd_upload.html", {"result": json.dumps(result, ensure_ascii=False, indent=2)})
+    return render(request, "core/jd_upload.html", {
+        "result": json.dumps(result, ensure_ascii=False, indent=2)
+    })
+
+@require_POST
+def upload_resume(request):
+    """Handle resume upload and queue AI analysis."""
+    file = request.FILES.get("resume")
+    if not file:
+        return render(request, "core/upload.html", {"error": "No file uploaded."})
+
+    # ✅ Attach user if logged in
+    user = request.user if request.user.is_authenticated else None
+    instance = ResumeUpload.objects.create(file=file, user=user)
+
+    # ✅ Enqueue async processing
+    queue = django_rq.get_queue("default")
+    queue.enqueue(process_resume_upload, instance.id)
+
+    result = {
+        "status": "PROCESSING",
+        "message": "Your resume is being analyzed. Please wait a moment.",
+        "resume_id": instance.id,
+    }
+    return render(request, "core/upload.html", {"result": json.dumps(result, ensure_ascii=False)})
 
 
-def sanitize_tex(tex):
-    dangerous = [
-        r'\\write18', r'\\input', r'\\include', r'\\openout',
-        r'\\read', r'\\immediate', r'\\special', r'\\catcode',
-        r'\\every', r'\\loop', r'\\csname', r'\\expandafter'
-    ]
-    for d in dangerous:
-        tex = re.sub(d, '', tex, flags=re.IGNORECASE)
-    return tex
 
-
-
-
-
-def compile_tex_to_pdf(tex_content):
-    with tempfile.TemporaryDirectory() as tmpdir:
-        tex_file = os.path.join(tmpdir, "resume.tex")
-        with open(tex_file, "w", encoding="utf-8") as f:
-            f.write(tex_content)
-
-        # Run tectonic (safe, no shell escape)
-        result = subprocess.run(
-            ["tectonic", tex_file, "--outdir", tmpdir],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            timeout=120  # safety timeout
-        )
-
-        if result.returncode != 0:
-            raise Exception(f"Compilation failed: {result.stderr.decode()}")
-
-        pdf_path = os.path.join(tmpdir, "resume.pdf")
-        with open(pdf_path, "rb") as f:
-            return f.read()
-
-
-from django.http import HttpResponse
-import json
-
-import base64
-import tempfile
-from django.http import HttpResponse
-from django.views.decorators.http import require_POST
-from django.shortcuts import render
-from .models import ResumeUpload
-
+@login_required(login_url="/login/")
 @require_POST
 def generate_latex_view(request):
     """
-    Takes AI review result and resume text, generates LaTeX using GPT-5-mini,
-    compiles it to PDF via Tectonic, and displays it inline before download.
+    Enqueue LaTeX generation task for the latest resume of the logged-in user.
     """
     try:
         result_json = request.POST.get("resume_text")
         if not result_json:
             return render(request, "core/upload.html", {"error": "No resume data received."})
 
-        # Parse JSON safely
+        # ✅ Safely parse JSON
         result_data = json.loads(result_json)
         ai_suggestions = result_data.get("ai_analysis", {})
 
-        # ✅ Get latest uploaded resume
-        instance = ResumeUpload.objects.last()
+        # ✅ Fetch latest resume *for this user only*
+        instance = ResumeUpload.objects.filter(user=request.user).order_by("-uploaded_at").first()
         if not instance or not instance.file:
-            return render(request, "core/upload.html", {"error": "No uploaded resume file found."})
+            return render(request, "core/upload.html", {"error": "No uploaded resume found."})
 
-        file_path = instance.file.path
+        # ✅ Queue LaTeX generation task
+        queue = django_rq.get_queue("default")
+        job = queue.enqueue(generate_latex_task, instance.id, ai_suggestions)
 
-        # ✅ Extract resume text
-        if file_path.lower().endswith(".pdf"):
-            resume_text = extract_text_from_pdf(file_path)
-        elif file_path.lower().endswith(".docx"):
-            resume_text = extract_text_from_docx(file_path)
-        else:
-            return render(request, "core/upload.html", {"error": "Unsupported file type."})
+        # ✅ Return processing status for frontend polling
+        result = {
+            "status": "PROCESSING_LATEX",
+            "message": "Generating LaTeX resume...",
+            "resume_id": instance.id,
+            "job_id": job.id,
+        }
+        return render(request, "core/upload.html", {"result": json.dumps(result, ensure_ascii=False)})
 
-        resume_text = normalize_text(resume_text)
+    except Exception as e:
+        return render(request, "core/upload.html", {"error": f"Error starting LaTeX generation: {str(e)}"})
+    
 
-        # ✅ Generate LaTeX and compile to PDF
-        latex_output = generate_latex_resume(resume_text, ai_suggestions)
-        pdf_bytes = compile_tex_to_pdf(latex_output)
+@require_POST
+def upload_resume(request):
+    """Handle resume upload and queue AI analysis."""
+    file = request.FILES.get("resume")
+    if not file:
+        return render(request, "core/upload.html", {"error": "No file uploaded."})
 
-        # ✅ Temporarily save PDF to /tmp (secure, auto-deleted on restart)
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-            tmp.write(pdf_bytes)
-            tmp.flush()
-            pdf_path = tmp.name
+    # ✅ Attach user if logged in
+    user = request.user if request.user.is_authenticated else None
+    instance = ResumeUpload.objects.create(file=file, user=user)
 
-        # ✅ Encode to Base64 for inline rendering
-        pdf_base64 = base64.b64encode(pdf_bytes).decode("utf-8")
-        pdf_data_uri = f"data:application/pdf;base64,{pdf_base64}"
+    # ✅ Enqueue async processing
+    queue = django_rq.get_queue("default")
+    queue.enqueue(process_resume_upload, instance.id)
 
-        # ✅ Render the same upload page, now with embedded preview
+    result = {
+        "status": "PROCESSING",
+        "message": "Your resume is being analyzed. Please wait a moment.",
+        "resume_id": instance.id,
+    }
+    return render(request, "core/upload.html", {"result": json.dumps(result, ensure_ascii=False)})
+
+
+
+@login_required(login_url="/login/")
+@require_POST
+def generate_latex_view(request):
+    """
+    Enqueue LaTeX generation task for the latest resume of the logged-in user.
+    """
+    try:
+        result_json = request.POST.get("resume_text")
+        if not result_json:
+            return render(request, "core/upload.html", {"error": "No resume data received."})
+
+        # ✅ Safely parse JSON
+        result_data = json.loads(result_json)
+        ai_suggestions = result_data.get("ai_analysis", {})
+
+        # ✅ Fetch latest resume *for this user only*
+        instance = ResumeUpload.objects.filter(user=request.user).order_by("-uploaded_at").first()
+        if not instance or not instance.file:
+            return render(request, "core/upload.html", {"error": "No uploaded resume found."})
+
+        # ✅ Queue LaTeX generation task
+        queue = django_rq.get_queue("default")
+        job = queue.enqueue(generate_latex_task, instance.id, ai_suggestions)
+
+        # ✅ Return processing status for frontend polling
+        result = {
+            "status": "PROCESSING_LATEX",
+            "message": "Generating LaTeX resume...",
+            "resume_id": instance.id,
+            "job_id": job.id,
+        }
+        return render(request, "core/upload.html", {"result": json.dumps(result, ensure_ascii=False)})
+
+    except Exception as e:
+        return render(request, "core/upload.html", {"error": f"Error starting LaTeX generation: {str(e)}"})
+
+# -------------------------------------------------------------------
+# LATEX GENERATION
+# -------------------------------------------------------------------
+
+@login_required(login_url="/login/")
+@require_POST
+def generate_latex_view(request):
+    """Queue LaTeX generation for latest user resume."""
+    try:
+        result_json = request.POST.get("resume_text")
+        if not result_json:
+            return render(request, "core/upload.html", {"error": "No resume data received."})
+
+        result_data = json.loads(result_json)
+        ai_suggestions = result_data.get("ai_analysis", {})
+
+        instance = ResumeUpload.objects.filter(user=request.user).last()
+        if not instance or not instance.file:
+            return render(request, "core/upload.html", {"error": "No uploaded resume found."})
+
+        queue = django_rq.get_queue("default")
+        job = queue.enqueue(generate_latex_task, instance.id, ai_suggestions)
+
         return render(request, "core/upload.html", {
-            "pdf_data_uri": pdf_data_uri,
-            "success": True
+            "result": json.dumps({
+                "status": "PROCESSING_LATEX",
+                "message": "Generating LaTeX resume...",
+                "resume_id": instance.id,
+                "job_id": job.id,
+            }, ensure_ascii=False)
         })
 
     except Exception as e:
-        return render(request, "core/upload.html", {"error": f"Error generating PDF: {str(e)}"})
+        return render(request, "core/upload.html", {"error": f"Error starting LaTeX generation: {str(e)}"})
+
+# -------------------------------------------------------------------
+# STATUS CHECK
+# -------------------------------------------------------------------
+
+def check_resume_status(request, resume_id):
+    """AJAX endpoint to fetch latest resume analysis result."""
+    try:
+        instance = ResumeUpload.objects.get(id=resume_id)
+        return JsonResponse(instance.result_json or {"status": "PROCESSING"}, safe=False)
+    except ResumeUpload.DoesNotExist:
+        return JsonResponse({"error": "Resume not found."}, status=404)
+
+# -------------------------------------------------------------------
+# AUTH
+# -------------------------------------------------------------------
+
+def signup_view(request):
+    if request.method == "POST":
+        username = request.POST.get("username", "").strip()
+        password = request.POST.get("password", "").strip()
+        password2 = request.POST.get("password2", "").strip()
+
+        if not username or not password:
+            return render(request, "auth/signup.html", {"error": "Username and password are required."})
+        if password != password2:
+            return render(request, "auth/signup.html", {"error": "Passwords do not match."})
+        if User.objects.filter(username=username).exists():
+            return render(request, "auth/signup.html", {"error": "Username already taken."})
+
+        user = User.objects.create_user(username=username, password=password)
+        login(request, user)
+        return redirect("home")
+
+    return render(request, "auth/signup.html")
+
+def login_view(request):
+    if request.method == "POST":
+        username = request.POST.get("username", "").strip()
+        password = request.POST.get("password", "").strip()
+        user = authenticate(request, username=username, password=password)
+        if user is not None:
+            login(request, user)
+            return redirect(request.GET.get("next") or "home")
+        else:
+            return render(request, "auth/login.html", {"error": "Invalid username or password."})
+    return render(request, "auth/login.html")
+
+@login_required(login_url="/login/")
+def logout_view(request):
+    """Logout user and show confirmation page."""
+    logout(request)
+    return render(request, "auth/logout_success.html")

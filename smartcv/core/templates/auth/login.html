@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+{% block title %}Login • Resume Rater{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="row justify-content-center">
+    <div class="col-md-5">
+      <!-- Login Card -->
+      <div class="card-custom">
+        <!-- Header with Icon -->
+        <div class="text-center mb-4">
+          <div class="feature-icon mx-auto mb-3" style="width: 70px; height: 70px;">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" 
+                    stroke="white" stroke-width="2"/>
+              <path d="M2 12C2 12 5 6 12 6C19 6 22 12 22 12C22 12 19 18 12 18C5 18 2 12 2 12Z" 
+                    stroke="white" stroke-width="2"/>
+            </svg>
+          </div>
+          <h2 class="text-gradient mb-2">Welcome Back</h2>
+          <p class="text-muted">Sign in to access your resume analysis dashboard</p>
+        </div>
+
+        <!-- Error Message -->
+        {% if error %}
+        <div class="alert alert-danger d-flex align-items-center mb-4" role="alert" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); color: #fca5a5;">
+          <svg class="me-2" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 8V12M12 16H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z" 
+                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          {{ error }}
+        </div>
+        {% endif %}
+
+        <!-- Login Form -->
+        <form method="post" class="mt-4">
+          {% csrf_token %}
+          
+          <!-- Username Field -->
+          <div class="mb-4">
+            <label class="form-label fw-semibold">Username</label>
+            <div class="input-group">
+              <span class="input-group-text bg-surface border-end-0">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M20 21V19C20 16.7909 18.2091 15 16 15H8C5.79086 15 4 16.7909 4 19V21M16 7C16 9.20914 14.2091 11 12 11C9.79086 11 8 9.20914 8 7C8 4.79086 9.79086 3 12 3C14.2091 3 16 4.79086 16 7Z" 
+                        stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </span>
+              <input type="text" name="username" class="form-control border-start-0" placeholder="Enter your username" required style="padding-left: 0;">
+            </div>
+          </div>
+
+          <!-- Password Field -->
+          <div class="mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <label class="form-label fw-semibold">Password</label>
+              <a href="{% url 'password_reset' %}" class="text-gradient small text-decoration-none">Forgot password?</a>
+            </div>
+            <div class="input-group">
+              <span class="input-group-text bg-surface border-end-0">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 15V17M6 21H18C19.1046 21 20 20.1046 20 19V13C20 11.8954 19.1046 11 18 11H6C4.89543 11 4 11.8954 4 13V19C4 20.1046 4.89543 21 6 21ZM16 11V7C16 4.79086 14.2091 3 12 3C9.79086 3 8 4.79086 8 7V11H16Z" 
+                        stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </span>
+              <input type="password" name="password" class="form-control border-start-0" placeholder="Enter your password" required style="padding-left: 0;">
+            </div>
+          </div>
+
+          <!-- Remember Me Checkbox -->
+          <div class="mb-4 form-check">
+            <input type="checkbox" class="form-check-input" id="rememberMe" name="remember_me">
+            <label class="form-check-label text-muted" for="rememberMe">Remember me for 30 days</label>
+          </div>
+
+          <!-- Submit Button -->
+          <button type="submit" class="btn btn-primary w-100 py-3 fw-semibold" style="font-size: 1.1rem;">
+            <span class="d-flex align-items-center justify-content-center">
+              <svg class="me-2" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M10 12L12.5 14.5L22 5M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C15.3019 3 18.1885 4.77814 19.7545 7.42909" 
+                      stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              Sign In
+            </span>
+          </button>
+        </form>
+
+        <!-- Divider -->
+        <div class="position-relative my-4">
+          <hr class="border-muted">
+          <span class="position-absolute top-50 start-50 translate-middle bg-surface px-3 text-muted small">or</span>
+        </div>
+
+        <!-- Demo Account Info -->
+        <div class="alert alert-info border-0 mb-4" style="background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.2) !important; color: var(--accent-light);">
+          <div class="d-flex">
+            <svg class="me-2 flex-shrink-0" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M13 16H12C9.79086 16 8 14.2091 8 12V12C8 9.79086 9.79086 8 12 8H13M13 16C13 17.6569 14.3431 19 16 19H18C19.6569 19 21 17.6569 21 16V16C21 14.3431 19.6569 13 18 13H16C14.3431 13 13 14.3431 13 16V16Z" 
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <div>
+              <strong>Demo Access:</strong> Use "demo" / "demo123" to test the platform
+            </div>
+          </div>
+        </div>
+
+        <!-- Sign Up Link -->
+        <div class="text-center mt-4 pt-3 border-top border-secondary">
+          <p class="text-muted mb-2">Don't have an account?</p>
+          <a href="{% url 'signup' %}" class="btn btn-outline-primary w-100">
+            Create New Account
+          </a>
+        </div>
+      </div>
+
+      <!-- Stats Section -->
+      <div class="text-center mt-4">
+        <div class="row g-3">
+          <div class="col-4">
+            <div class="bg-surface rounded p-3">
+              <div class="text-gradient fw-bold">10K+</div>
+              <div class="text-muted small">Resumes Analyzed</div>
+            </div>
+          </div>
+          <div class="col-4">
+            <div class="bg-surface rounded p-3">
+              <div class="text-gradient fw-bold">98%</div>
+              <div class="text-muted small">Success Rate</div>
+            </div>
+          </div>
+          <div class="col-4">
+            <div class="bg-surface rounded p-3">
+              <div class="text-gradient fw-bold">4.9★</div>
+              <div class="text-muted small">User Rating</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .input-group-text {
+    background: var(--surface-light) !important;
+    border: 1px solid var(--border) !important;
+    border-right: none !important;
+    transition: var(--transition);
+  }
+  
+  .form-control:focus + .input-group-text,
+  .form-control:focus ~ .input-group-text {
+    border-color: var(--accent) !important;
+  }
+  
+  .form-check-input {
+    background: var(--surface-light);
+    border: 1px solid var(--border);
+  }
+  
+  .form-check-input:checked {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  
+  .form-check-input:focus {
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+  }
+  
+  .alert-danger {
+    background: rgba(239, 68, 68, 0.1) !important;
+    border: 1px solid rgba(239, 68, 68, 0.3) !important;
+    color: #fca5a5 !important;
+  }
+</style>
+{% endblock %}

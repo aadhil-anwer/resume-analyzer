@@ -1,24 +1,31 @@
-<h2>Resume + Job Description ATS Match</h2>
+{% extends "base.html" %}
+{% block title %}Resume + Job Match • Resume Rater{% endblock %}
 
-{% if error %}
-  <p style="color:red;">{{ error }}</p>
-{% endif %}
+{% block content %}
+<div class="container py-5">
+  <h2 class="text-center text-gradient mb-4">Match Your Resume with a Job</h2>
 
-<form method="POST" action="{% url 'upload_resume_with_jd' %}" enctype="multipart/form-data">
-  {% csrf_token %}
-  <label>Upload Resume (PDF or DOCX):</label><br>
-  <input type="file" name="resume" accept=".pdf,.docx" required><br><br>
+  <form action="{% url 'upload_resume_with_jd' %}" method="post" enctype="multipart/form-data" class="mx-auto" style="max-width:600px;">
+    {% csrf_token %}
+    <div class="mb-3">
+      <label for="resume" class="form-label">Upload Resume</label>
+      <input type="file" name="resume" id="resume" class="form-control" accept=".pdf,.docx" required>
+    </div>
+    <div class="mb-3">
+      <label for="jd" class="form-label">Paste Job Description</label>
+      <textarea name="jd" id="jd" rows="6" class="form-control" placeholder="Paste the job description here..." required></textarea>
+    </div>
+    <button type="submit" class="btn btn-primary w-100">Analyze Match</button>
+  </form>
 
-  <label>Paste Job Description:</label><br>
-  <textarea name="jd" rows="10" cols="80" placeholder="Paste the JD here..." required></textarea><br><br>
+  {% if error %}
+    <div class="alert alert-danger mt-3 text-center">{{ error }}</div>
+  {% endif %}
 
-  <button type="submit">Analyze Match</button>
-</form>
-
-{% if result %}
-  <h3>Result:</h3>
-  <pre>{{ result }}</pre>
-{% endif %}
-
-<br>
-<a href="{% url 'upload_page' %}">← Back to Resume-only Analysis</a>
+  {% if result %}
+    <div class="report-container mt-4">
+      <pre style="white-space: pre-wrap; color:#ddd;">{{ result }}</pre>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}
