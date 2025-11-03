@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 from datetime import datetime
 
 # Models & Tasks
-from .models import ResumeUpload
+from .models import ResumeUpload, LatexResume
 from core.tasks import process_resume_upload, generate_latex_task
 
 # Utils
@@ -45,7 +45,51 @@ def jd_upload_page(request):
 # -------------------------------------------------------------------
 # RESUME ANALYSIS
 # -------------------------------------------------------------------
+@require_POST
+@login_required(login_url="/login/")
+def upload_resume(request):
+    """
+    Handles standard resume upload and performs AI analysis (without job description).
+    Saves the result in ResumeUpload.result_json.
+    """
+    print("📥 upload_resume() triggered by user:", request.user)
+    print("FILES:", request.FILES)
 
+    file = request.FILES.get("resume")
+    if not file:
+        return render(request, "core/upload.html", {"error": "Please select a file to upload."})
+
+    # Create DB entry for the uploaded resume
+    instance = ResumeUpload.objects.create(file=file, user=request.user)
+    file_path = instance.file.path
+
+    # Extract text based on file type
+    if file_path.lower().endswith(".pdf"):
+        resume_text = extract_text_from_pdf(file_path)
+    elif file_path.lower().endswith(".docx"):
+        resume_text = extract_text_from_docx(file_path)
+    else:
+        return render(request, "core/upload.html", {"error": "Unsupported file type."})
+
+    # Normalize and run local checks
+    resume_text = normalize_text(resume_text)
+    local_check = run_local_checks(resume_text)
+
+    # Queue background AI analysis (via RQ)
+    queue = django_rq.get_queue("default")
+    job = queue.enqueue(process_resume_upload, instance.id)
+
+    # Return initial response so frontend can start polling
+    result = {
+        "status": "PROCESSING",
+        "message": "Resume uploaded successfully, starting AI analysis...",
+        "resume_id": instance.id,
+        "job_id": job.id,
+    }
+
+    return render(request, "core/upload.html", {
+        "result": json.dumps(result, ensure_ascii=False)
+    })
 @require_POST
 @login_required(login_url="/login/")
 def upload_resume_with_jd(request):
@@ -96,174 +140,120 @@ def upload_resume_with_jd(request):
         "result": json.dumps(result, ensure_ascii=False, indent=2)
     })
 
-@require_POST
-def upload_resume(request):
-    """Handle resume upload and queue AI analysis."""
-    file = request.FILES.get("resume")
-    if not file:
-        return render(request, "core/upload.html", {"error": "No file uploaded."})
-
-    # ✅ Attach user if logged in
-    user = request.user if request.user.is_authenticated else None
-    instance = ResumeUpload.objects.create(file=file, user=user)
-
-    # ✅ Enqueue async processing
-    queue = django_rq.get_queue("default")
-    queue.enqueue(process_resume_upload, instance.id)
-
-    result = {
-        "status": "PROCESSING",
-        "message": "Your resume is being analyzed. Please wait a moment.",
-        "resume_id": instance.id,
-    }
-    return render(request, "core/upload.html", {"result": json.dumps(result, ensure_ascii=False)})
 
 
 
-@login_required(login_url="/login/")
-@require_POST
-def generate_latex_view(request):
-    """
-    Enqueue LaTeX generation task for the latest resume of the logged-in user.
-    """
-    try:
-        result_json = request.POST.get("resume_text")
-        if not result_json:
-            return render(request, "core/upload.html", {"error": "No resume data received."})
-
-        # ✅ Safely parse JSON
-        result_data = json.loads(result_json)
-        ai_suggestions = result_data.get("ai_analysis", {})
-
-        # ✅ Fetch latest resume *for this user only*
-        instance = ResumeUpload.objects.filter(user=request.user).order_by("-uploaded_at").first()
-        if not instance or not instance.file:
-            return render(request, "core/upload.html", {"error": "No uploaded resume found."})
-
-        # ✅ Queue LaTeX generation task
-        queue = django_rq.get_queue("default")
-        job = queue.enqueue(generate_latex_task, instance.id, ai_suggestions)
-
-        # ✅ Return processing status for frontend polling
-        result = {
-            "status": "PROCESSING_LATEX",
-            "message": "Generating LaTeX resume...",
-            "resume_id": instance.id,
-            "job_id": job.id,
-        }
-        return render(request, "core/upload.html", {"result": json.dumps(result, ensure_ascii=False)})
-
-    except Exception as e:
-        return render(request, "core/upload.html", {"error": f"Error starting LaTeX generation: {str(e)}"})
-    
-
-@require_POST
-def upload_resume(request):
-    """Handle resume upload and queue AI analysis."""
-    file = request.FILES.get("resume")
-    if not file:
-        return render(request, "core/upload.html", {"error": "No file uploaded."})
-
-    # ✅ Attach user if logged in
-    user = request.user if request.user.is_authenticated else None
-    instance = ResumeUpload.objects.create(file=file, user=user)
-
-    # ✅ Enqueue async processing
-    queue = django_rq.get_queue("default")
-    queue.enqueue(process_resume_upload, instance.id)
-
-    result = {
-        "status": "PROCESSING",
-        "message": "Your resume is being analyzed. Please wait a moment.",
-        "resume_id": instance.id,
-    }
-    return render(request, "core/upload.html", {"result": json.dumps(result, ensure_ascii=False)})
 
 
 
-@login_required(login_url="/login/")
-@require_POST
-def generate_latex_view(request):
-    """
-    Enqueue LaTeX generation task for the latest resume of the logged-in user.
-    """
-    try:
-        result_json = request.POST.get("resume_text")
-        if not result_json:
-            return render(request, "core/upload.html", {"error": "No resume data received."})
 
-        # ✅ Safely parse JSON
-        result_data = json.loads(result_json)
-        ai_suggestions = result_data.get("ai_analysis", {})
 
-        # ✅ Fetch latest resume *for this user only*
-        instance = ResumeUpload.objects.filter(user=request.user).order_by("-uploaded_at").first()
-        if not instance or not instance.file:
-            return render(request, "core/upload.html", {"error": "No uploaded resume found."})
 
-        # ✅ Queue LaTeX generation task
-        queue = django_rq.get_queue("default")
-        job = queue.enqueue(generate_latex_task, instance.id, ai_suggestions)
-
-        # ✅ Return processing status for frontend polling
-        result = {
-            "status": "PROCESSING_LATEX",
-            "message": "Generating LaTeX resume...",
-            "resume_id": instance.id,
-            "job_id": job.id,
-        }
-        return render(request, "core/upload.html", {"result": json.dumps(result, ensure_ascii=False)})
-
-    except Exception as e:
-        return render(request, "core/upload.html", {"error": f"Error starting LaTeX generation: {str(e)}"})
 
 # -------------------------------------------------------------------
 # LATEX GENERATION
 # -------------------------------------------------------------------
 
+# -------------------------------------------------------------------
+# LATEX GENERATION (Django View)
+# -------------------------------------------------------------------
+
 @login_required(login_url="/login/")
 @require_POST
 def generate_latex_view(request):
-    """Queue LaTeX generation for latest user resume."""
+    """Handles LaTeX resume generation with separate tracking"""
     try:
+        print("🔍 DEBUG generate_latex_view: Started")
         result_json = request.POST.get("resume_text")
+        print(f"🔍 DEBUG: Received resume_text - {result_json}")
+        
         if not result_json:
-            return render(request, "core/upload.html", {"error": "No resume data received."})
+            print("❌ DEBUG: No resume_text received")
+            return JsonResponse({"error": "No resume data received."}, status=400)
 
         result_data = json.loads(result_json)
         ai_suggestions = result_data.get("ai_analysis", {})
+        print(f"🔍 DEBUG: AI suggestions keys - {ai_suggestions.keys()}")
 
-        instance = ResumeUpload.objects.filter(user=request.user).last()
-        if not instance or not instance.file:
-            return render(request, "core/upload.html", {"error": "No uploaded resume found."})
+        # Get the last resume upload for this user
+        resume_upload = ResumeUpload.objects.filter(user=request.user).last()
+        if not resume_upload or not resume_upload.file:
+            print("❌ DEBUG: No uploaded resume found")
+            return JsonResponse({"error": "No uploaded resume found."}, status=404)
 
+        print(f"🔍 DEBUG: Found resume upload - {resume_upload.id}")
+
+        # ✅ Create LatexResume record first
+        latex_resume = LatexResume.objects.create(
+            user=request.user,
+            resume_upload=resume_upload,
+            ai_suggestions=ai_suggestions,
+            result_json={"status": "PROCESSING"}
+        )
+
+        print(f"🔍 DEBUG: Created LatexResume - {latex_resume.id}")
+
+        # Queue background job with BOTH IDs
         queue = django_rq.get_queue("default")
-        job = queue.enqueue(generate_latex_task, instance.id, ai_suggestions)
+        job = queue.enqueue("core.tasks.generate_latex_task", resume_upload.id, ai_suggestions)
 
-        return render(request, "core/upload.html", {
-            "result": json.dumps({
-                "status": "PROCESSING_LATEX",
-                "message": "Generating LaTeX resume...",
-                "resume_id": instance.id,
-                "job_id": job.id,
-            }, ensure_ascii=False)
-        })
+        response_data = {
+            "status": "PROCESSING_LATEX",
+            "message": "Generating LaTeX resume...",
+            "resume_id": resume_upload.id,
+            "latex_resume_id": latex_resume.id,
+            "job_id": job.id,
+        }
+        
+        print(f"🔍 DEBUG: Returning response - {response_data}")
+        
+        return JsonResponse(response_data)
 
     except Exception as e:
-        return render(request, "core/upload.html", {"error": f"Error starting LaTeX generation: {str(e)}"})
-
+        print(f"❌ DEBUG: Error in generate_latex_view: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({"error": f"Error starting LaTeX generation: {str(e)}"}, status=500)
+# ✅ NEW: Separate status check for LaTeX
+def check_latex_status(request, latex_resume_id):
+    """AJAX endpoint to check LaTeX generation status"""
+    try:
+        print(f"🔍 check_latex_status called for ID: {latex_resume_id}")
+        instance = LatexResume.objects.get(id=latex_resume_id)
+        
+        response_data = instance.result_json or {"status": "PROCESSING"}
+        print(f"🔍 Returning status: {response_data.get('status')}")
+        print(f"🔍 Full response data: {response_data}")
+        
+        # Check if PDF file exists
+        if instance.pdf_file:
+            print(f"🔍 PDF file exists: {instance.pdf_file.name}, Size: {instance.pdf_file.size} bytes")
+        else:
+            print("🔍 No PDF file found")
+            
+        return JsonResponse(response_data, safe=False)
+        
+    except LatexResume.DoesNotExist:
+        print(f"❌ LatexResume {latex_resume_id} not found")
+        return JsonResponse({"error": "LaTeX resume not found."}, status=404)
+    except Exception as e:
+        print(f"❌ Error in check_latex_status: {e}")
+        return JsonResponse({"error": str(e)}, status=500)
 # -------------------------------------------------------------------
 # STATUS CHECK
 # -------------------------------------------------------------------
 
 def check_resume_status(request, resume_id):
-    """AJAX endpoint to fetch latest resume analysis result."""
+    """AJAX endpoint to fetch latest resume analysis result INCLUDING LaTeX status."""
     try:
         instance = ResumeUpload.objects.get(id=resume_id)
-        return JsonResponse(instance.result_json or {"status": "PROCESSING"}, safe=False)
+        result = instance.result_json or {"status": "PROCESSING"}
+        
+        # ✅ Ensure we return the complete result including latex_result
+        return JsonResponse(result, safe=False)
+        
     except ResumeUpload.DoesNotExist:
         return JsonResponse({"error": "Resume not found."}, status=404)
-
 # -------------------------------------------------------------------
 # AUTH
 # -------------------------------------------------------------------

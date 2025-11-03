@@ -1,124 +1,138 @@
 
-import json
-import google.generativeai as genai
-from dotenv import load_dotenv
-from datetime import datetime
+
 import os
-today = datetime.now().strftime("%B %d, %Y")
+import json
+from datetime import datetime
+from openai import OpenAI
+from dotenv import load_dotenv
+
 load_dotenv()
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-def gemini_resume_jd_match_analysis(resume_text: str, jd_text: str):
-    """Compare resume vs job description and score ATS match."""
-    api_key = os.getenv("GEMINI_API_KEY")
+today = datetime.now().strftime("%B %d, %Y")
 
-    if not api_key:
-        return {"error": "Missing GEMINI_API_KEY"}
+def match_resume_to_jd(resume_text: str, jd_text: str):
+    """
+    Compare resume vs job description using GPT-5 and produce ATS match scoring.
+    """
+    if not os.getenv("OPENAI_API_KEY"):
+        return {"error": "Missing OPENAI_API_KEY"}
 
-    try:
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel("models/gemini-2.5-pro")
-
-        
-        prompt = f"""
-SYSTEM ROLE:
+    system_prompt = f"""
 You are a Fortune-100 Senior Recruiter and ATS Optimization Specialist with 15+ years of experience hiring across global tech, finance, and consulting organizations.
+
 You are known for critical, data-driven resume benchmarking. You must evaluate a candidate's resume in comparison to *industry-best resumes for that same role* and grade strictly, assuming hundreds of competitive applicants exist.
+
 SYSTEM DATE: {today}
 You are evaluating this resume as if reviewed today.
+
 EVALUATION CONTEXT:
 You are evaluating this resume against:
 1. The provided Job Description (JD)
 2. The top 10% of resumes in the same role, based on measurable outcomes, keyword strength, layout precision, and ATS parsing quality
-3. Common market expectations for the role (essential certifications, domain tools, methodologies)
-
-INPUT VARIABLES:
-• [RESUME TEXT]
-• [JOB DESCRIPTION TEXT]
+3. Market expectations for the role (certifications, technical depth, methodologies)
 
 EVALUATION GOAL:
-Provide a compact JSON object that evaluates how competitive, ATS-compliant, and employer-ready the resume is — using a realistic, non-liberal grading curve (average resumes score 60–70; only truly exceptional ones exceed 90).
+Provide a compact JSON object that evaluates how competitive, ATS-compliant, and employer-ready the resume is — using a strict, realistic grading curve (average resumes score 60-70; exceptional resumes exceed 90).
 
-─────────────────────────────
-EVALUATION CRITERIA (0–5 EACH)
-─────────────────────────────
-1. Layout & ATS Compatibility – one-column, text-based, machine-readable
-2. Professional Presentation – clean header, contact format, no gimmicks
-3. Resume Length – optimal length per experience level (1–2 pages)
-4. Skim Value & Readability – logical flow, bullet efficiency, visual hierarchy
-5. Summary/Profile Effectiveness – clarity, role focus, value proposition
-6. Work Experience Structure – reverse chronology, measurable contributions
-7. Language & Tone – professional, confident, not verbose
-8. Gaps & Multiple Roles – transparently managed, clear timelines
-9. Education Placement/Relevance – appropriate order, key degrees visible
-10. Quantifiable Achievements – metrics or tangible results in ≥50% bullets
-11. Action-Result Structure – STAR/PAR clarity (context → action → result)
-12. Skills Presentation – organized, measurable, realistic
-13. Targeted Keyword Alignment – overlap with JD + core industry skills
-14. Relevant Placement of Key Content – key qualifications appear early
-15. Integrity & Honesty – originality, no job-description copy-paste
-16. Job Level Match – candidate experience fits advertised level
-17. Market Competitiveness – how it compares to top 10% resumes for the same role (technical depth, leadership, impact, certifications)
+-------------------------------------
+EVALUATION CRITERIA (SCORE 0-5 EACH)
+-------------------------------------
+1. Layout & ATS Compatibility - one-column, text-based, machine-readable
+2. Professional Presentation - clean header, consistent formatting
+3. Resume Length - 1-2 pages, based on experience
+4. Skim Value & Readability - logical flow, concise bullet points
+5. Summary/Profile - clarity, role alignment, value proposition
+6. Work Experience Structure - reverse chronology, scope clarity
+7. Language & Tone - professional, confident, not verbose
+8. Work Experience Timeline Clarity - no unexplained gaps
+9. Education - appropriately placed and relevant
+10. Quantifiable Achievements - >=50% bullets include measurable results
+11. Action-Result Structure - STAR/PAR storytelling strength
+12. Skills Section - organized, relevant, and realistically leveled
+13. JD Keyword Alignment - overlap with essential job requirements
+14. Early Visibility of Key Qualifications - key strengths appear at top
+15. Originality - avoids JD copy-paste wording
+16. Job Level Fit - experience matches role expectations
+17. Market Competitiveness - comparison to top 10% resumes in field
 
-─────────────────────────────
-ADDITIONAL RULES
-─────────────────────────────
-• Include a **relative competitiveness score** inside your analysis, comparing it to industry-best candidates for that role.
-• If the resume lacks core domain skills that are expected for the role but not mentioned in the JD, deduct points (e.g., cybersecurity → missing SIEM, Nmap, MITRE ATT&CK, etc.).
-• Do not inflate scores for presentation; content depth, measurable results, and keywords weigh heavier.
-• Consider skill density, modern tool familiarity, and project impact as primary differentiators.
+-------------------------------------
+ADDITIONAL SCORING RULES
+-------------------------------------
+- Deduct points if critical domain skills are missing (even if JD does not list them).
+- Weight meaningful accomplishments more heavily than formatting.
+- Resume should reflect modern tools + skill depth for the candidate's level.
+- Avoid generosity — evaluate like a real recruiter screening 200+ applications.
 
-─────────────────────────────
-OUTPUT FORMAT (STRICT JSON)
-─────────────────────────────
-Return ONLY one valid compact JSON object (no markdown, no code fences, no extra text):
+-------------------------------------
+OUTPUT FORMAT (STRICT JSON ONLY)
+-------------------------------------
+Return EXACTLY this JSON, with NO commentary, NO preface, NO markdown:
 
 {{
   "status": "SUCCESS",
   "evaluation": {{
-    "overall_summary": "≤200-word narrative summarizing major strengths, competitive weaknesses, and relative ranking vs industry-best resumes.",
+    "overall_summary": "...",
     "criteria": [
-      {{"id": 1, "name": "Layout & ATS Compatibility", "score": (0–5), "feedback": "One-sentence justification."}},
-      {{"id": 2, "name": "Professional Presentation", "score": (0–5), "feedback": "Explanation."}},
-      ...
-      {{"id": 17, "name": "Market Competitiveness", "score": (0–5), "feedback": "Describe how this resume compares to top 10% candidates."}}
-    ],
-    "total_score": "Average of all 17 criteria, rounded to two decimals",
-    "competitiveness_percentile": "(Estimated percentile position vs peers, e.g., 'Top 15%' or 'Below Average')",
-    "action_recommendation": "One of: 'Immediate Interview', 'Further Review', 'Needs Major Revision', or 'Reject'"
+      {{"id": 1, "name": "Layout & ATS Compatibility", "score": "0-5", "feedback": "..."}},
+      {{"id": 2, "name": "Professional Presentation", "score": "0-5", "feedback": "..."}},
+      {{"id": 3, "name": "Resume Length", "score": "0-5", "feedback": "..."}},
+      {{"id": 4, "name": "Skim Value & Readability", "score": "0-5", "feedback": "..."}},
+      {{"id": 5, "name": "Summary/Profile", "score": "0-5", "feedback": "..."}},
+      {{"id": 6, "name": "Work Experience Structure", "score": "0-5", "feedback": "..."}},
+      {{"id": 7, "name": "Language & Tone", "score": "0-5", "feedback": "..."}},
+      {{"id": 8, "name": "Work Experience Timeline Clarity", "score": "0-5", "feedback": "..."}},
+      {{"id": 9, "name": "Education", "score": "0-5", "feedback": "..."}},
+      {{"id": 10, "name": "Quantifiable Achievements", "score": "0-5", "feedback": "..."}},
+      {{"id": 11, "name": "Action-Result Structure", "score": "0-5", "feedback": "..."}},
+      {{"id": 12, "name": "Skills Section", "score": "0-5", "feedback": "..."}},
+      {{"id": 13, "name": "JD Keyword Alignment", "score": "0-5", "feedback": "..."}},
+      {{"id": 14, "name": "Early Visibility of Key Qualifications", "score": "0-5", "feedback": "..."}},
+      {{"id": 15, "name": "Originality", "score": "0-5", "feedback": "..."}},
+      {{"id": 16, "name": "Job Level Fit", "score": "0-5", "feedback": "..."}},
+      {{"id": 17, "name": "Market Competitiveness", "score": "0-5", "feedback": "..."}}
+}}    ],
+    "total_score": "Average of the 17 scores (2 decimals)",
+    "competitiveness_percentile": "e.g. Top 15% / Average / Below Average",
+    "action_recommendation": "Immediate Interview / Further Review / Needs Major Revision / Reject"
   }}
 }}
 
-─────────────────────────────
-STRICT OUTPUT RULES
-─────────────────────────────
-• Respond with **valid compact JSON only** — no markdown, no commentary.
-• Include every key listed above, even if feedback is positive.
-• Keep total length < 1500 tokens.
-• End exactly with the closing curly brace '}}'.
-• Internally ensure output would pass Python `json.loads()`.
-• Use strict, recruiter-level grading — do NOT give inflated or generous scores.
-
-RESUME TEXT:
-{resume_text}
-
-JOB DESCRIPTION TEXT:
-{jd_text}
+STRICT RULES:
+- Must be valid JSON (must pass json.loads()).
+- No markdown.
+- No explanation.
+- Output ends exactly after the closing braces.
+- Keep response under 1500 tokens.
 """
 
-        response = model.generate_content(
-            prompt,
-            generation_config={
-                "max_output_tokens": 8192,
-                "temperature": 0.2,
-                "top_p": 0.9
-            }
+    user_prompt = f"""
+        RESUME TEXT:
+        {resume_text}
+
+        JOB DESCRIPTION TEXT:
+        {jd_text}
+
+        Analyze the resume against the job description using the rules in the system prompt.
+        Return ONLY the JSON object.
+        """
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-5",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            
         )
 
-        raw = getattr(response, "text", "").strip()
+        content = response.choices[0].message.content.strip()
+
         try:
-            return json.loads(raw)
-        except Exception:
-            return {"error": "Gemini response invalid", "raw_output": raw}
+            return json.loads(content)
+        except:
+            return {"error": "Invalid JSON output from GPT-5", "raw_output": content}
 
     except Exception as e:
-        return {"error": f"Gemini JD match analysis failed: {str(e)}"}
+        return {"error": f"GPT-5 JD match analysis failed: {str(e)}"}

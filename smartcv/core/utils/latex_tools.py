@@ -20,6 +20,7 @@ def compile_tex_to_pdf(tex_content):
         )
 
         if result.returncode != 0:
+            print(tex_content)
             raise Exception(f"Tectonic compile failed: {result.stderr.decode()}")
 
         pdf_path = os.path.join(tmpdir, "resume.pdf")

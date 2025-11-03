@@ -1,0 +1,1146 @@
+{% extends "base.html" %}
+{% block title %}Upload & Analyze Resume • Resume Rater{% endblock %}
+
+{% block extra_css %}
+<style>
+/* UPLOAD PAGE SPECIFIC STYLES */
+.upload-page {
+    min-height: 100vh;
+    position: relative;
+}
+
+/* Animated Background */
+.animated-bg {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    overflow: hidden;
+}
+
+.floating-shape {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    animation: float 20s infinite linear;
+}
+
+.shape-1 {
+    width: 300px;
+    height: 300px;
+    top: -150px;
+    left: -150px;
+    animation-delay: 0s;
+}
+
+.shape-2 {
+    width: 200px;
+    height: 200px;
+    top: 50%;
+    right: -100px;
+    animation-delay: -5s;
+    animation-duration: 25s;
+}
+
+.shape-3 {
+    width: 150px;
+    height: 150px;
+    bottom: -75px;
+    left: 20%;
+    animation-delay: -10s;
+}
+
+.gradient-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.1) 0%, transparent 50%);
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0px) rotate(0deg); }
+    33% { transform: translateY(-30px) rotate(120deg); }
+    66% { transform: translateY(30px) rotate(240deg); }
+}
+
+/* Upload Card */
+.upload-container {
+    position: relative;
+    z-index: 2;
+}
+
+.glass-card {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 20px;
+    padding: 2rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.upload-card {
+    max-width: 600px;
+    transition: transform 0.3s ease;
+}
+
+.upload-card:hover {
+    transform: translateY(-5px);
+}
+
+.upload-area {
+    border: 2px dashed rgba(255, 255, 255, 0.3);
+    border-radius: 15px;
+    padding: 2rem;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.upload-area.drag-over {
+    border-color: #4ade80;
+    background: rgba(74, 222, 128, 0.1);
+}
+
+.upload-content {
+    text-align: center;
+}
+
+.upload-placeholder h4 {
+    color: white;
+    margin: 1rem 0 0.5rem;
+}
+
+.file-preview {
+    display: flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    padding: 1rem;
+    margin: 1rem 0;
+}
+
+.file-icon {
+    font-size: 2rem;
+    margin-right: 1rem;
+}
+
+.file-info h5 {
+    color: white;
+    margin: 0;
+}
+
+.file-size {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.875rem;
+}
+
+.btn-remove {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 1.5rem;
+    cursor: pointer;
+    margin-left: auto;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-remove:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.upload-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    margin-top: 1.5rem;
+}
+
+.upload-btn {
+    position: relative;
+    overflow: hidden;
+    border: none;
+    border-radius: 12px;
+    padding: 0.75rem 1.5rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.btn-upload-primary {
+    background: linear-gradient(135deg, #4ade80, #22d3ee);
+    color: white;
+}
+
+.btn-upload-success {
+    background: linear-gradient(135deg, #4ade80, #22c55e);
+    color: white;
+}
+
+.upload-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+}
+
+.btn-loader {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.upload-spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid transparent;
+    border-top: 2px solid white;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.hero-badge {
+    display: inline-block;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 50px;
+    padding: 0.5rem 1rem;
+    color: white;
+    font-size: 0.875rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+.gradient-title {
+    background: linear-gradient(135deg, #4ade80, #22d3ee, #a855f7);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* Enhanced Notification */
+.analysis-notification {
+    position: fixed;
+    top: 2rem;
+    right: 2rem;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px);
+    border-radius: 15px;
+    padding: 1.5rem;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    transform: translateX(400px);
+    opacity: 0;
+    transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    z-index: 1000;
+    max-width: 350px;
+}
+
+.analysis-notification.show {
+    transform: translateX(0);
+    opacity: 1;
+}
+
+.notification-content {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.notification-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #4ade80, #22d3ee);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+}
+
+.notification-icon.pulse {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+.notification-text h5 {
+    margin: 0 0 0.25rem;
+    color: #1f2937;
+}
+
+.notification-text p {
+    margin: 0;
+    color: #6b7280;
+    font-size: 0.875rem;
+}
+
+.notification-progress {
+    height: 4px;
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 2px;
+    margin-top: 1rem;
+    overflow: hidden;
+}
+
+.notification-progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #4ade80, #22d3ee);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+    width: 0%;
+}
+
+.loading-dots {
+    display: flex;
+    gap: 4px;
+    margin-top: 0.75rem;
+    justify-content: center;
+}
+
+.loading-dots span {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #6b7280;
+    animation: bounce 1.4s infinite ease-in-out both;
+}
+
+.loading-dots span:nth-child(1) { animation-delay: -0.32s; }
+.loading-dots span:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes bounce {
+    0%, 80%, 100% { transform: scale(0); }
+    40% { transform: scale(1); }
+}
+
+/* Enhanced Analysis Results */
+.report-container {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 20px;
+    padding: 2rem;
+    margin-top: 2rem;
+}
+
+.section {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 15px;
+    padding: 1.5rem;
+    margin: 1rem 0;
+    border-left: 4px solid #4ade80;
+    transition: transform 0.3s ease;
+}
+
+.section:hover {
+    transform: translateX(5px);
+}
+
+.section.highlight {
+    background: linear-gradient(135deg, rgba(74, 222, 128, 0.2), rgba(34, 211, 238, 0.2));
+    border-left-color: #22d3ee;
+}
+
+.preview-container {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 15px;
+    padding: 1rem;
+    margin: 1rem 0;
+}
+
+.preview-frame {
+    width: 100%;
+    height: 600px;
+    border: none;
+    background: white;
+    border-radius: 8px;
+}
+
+/* Analysis Grid */
+.analysis-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-top: 2rem;
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.section-icon {
+    font-size: 1.5rem;
+}
+
+.section-header h4 {
+    margin: 0;
+    color: white;
+}
+
+/* Success Animation */
+.success-animation {
+    text-align: center;
+    padding: 2rem;
+}
+
+.success-checkmark {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 1rem;
+}
+
+.check-icon {
+    width: 80px;
+    height: 80px;
+    position: relative;
+    border-radius: 50%;
+    box-sizing: content-box;
+    border: 4px solid #4ade80;
+}
+
+.check-icon::before {
+    top: 3px;
+    left: -2px;
+    width: 30px;
+    transform-origin: 100% 50%;
+    border-radius: 100px 0 0 100px;
+}
+
+.check-icon::after {
+    top: 0;
+    left: 30px;
+    width: 60px;
+    transform-origin: 0 50%;
+    border-radius: 0 100px 100px 0;
+    animation: rotate-circle 4.25s ease-in;
+}
+
+.check-icon::before, .check-icon::after {
+    content: '';
+    height: 100px;
+    position: absolute;
+    background: transparent;
+    transform: rotate(-45deg);
+}
+
+.icon-line {
+    height: 5px;
+    background-color: #4ade80;
+    display: block;
+    border-radius: 2px;
+    position: absolute;
+    z-index: 10;
+}
+
+.icon-line.line-tip {
+    top: 46px;
+    left: 14px;
+    width: 25px;
+    transform: rotate(45deg);
+    animation: icon-line-tip 0.75s;
+}
+
+.icon-line.line-long {
+    top: 38px;
+    right: 8px;
+    width: 47px;
+    transform: rotate(-45deg);
+    animation: icon-line-long 0.75s;
+}
+
+@keyframes rotate-circle {
+    0% { transform: rotate(-45deg); }
+    5% { transform: rotate(-45deg); }
+    12% { transform: rotate(-405deg); }
+    100% { transform: rotate(-405deg); }
+}
+
+@keyframes icon-line-tip {
+    0% { width: 0; left: 1px; top: 19px; }
+    54% { width: 0; left: 1px; top: 19px; }
+    70% { width: 50px; left: -8px; top: 37px; }
+    84% { width: 17px; left: 21px; top: 48px; }
+    100% { width: 25px; left: 14px; top: 45px; }
+}
+
+@keyframes icon-line-long {
+    0% { width: 0; right: 46px; top: 54px; }
+    65% { width: 0; right: 46px; top: 54px; }
+    84% { width: 55px; right: 0px; top: 35px; }
+    100% { width: 47px; right: 8px; top: 38px; }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .upload-container .container {
+        padding: 1rem;
+    }
+    
+    .upload-card {
+        margin: 1rem;
+    }
+    
+    .upload-area {
+        padding: 1rem;
+    }
+    
+    .upload-actions {
+        flex-direction: column;
+    }
+    
+    .analysis-notification {
+        right: 1rem;
+        left: 1rem;
+        max-width: none;
+    }
+    
+    .analysis-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="upload-page">
+    <!-- Animated Background -->
+    <div class="animated-bg">
+        <div class="floating-shape shape-1"></div>
+        <div class="floating-shape shape-2"></div>
+        <div class="floating-shape shape-3"></div>
+        <div class="gradient-overlay"></div>
+    </div>
+
+    <div class="upload-container container py-5">
+        <!-- Page Header -->
+        <div class="text-center mb-5">
+            <div class="hero-badge">AI-Powered Resume Analysis</div>
+            <h1 id="typing-title" class="typing-text gradient-title display-4 fw-bold mb-3"></h1>
+            <p class="subtitle lead text-light opacity-75">
+                Upload your resume and let AI craft a LaTeX version that's calm, precise, and unforgettable.
+            </p>
+        </div>
+
+        <!-- Upload Card -->
+        <div class="upload-card glass-card mx-auto">
+            <div class="card-header text-center mb-4">
+                <div class="upload-icon mb-3">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="17 8 12 3 7 8"/>
+                        <line x1="12" y1="3" x2="12" y2="15"/>
+                    </svg>
+                </div>
+                <h3 class="text-center mb-0 text-light">Upload Resume</h3>
+            </div>
+            
+            <form action="{% url 'upload_resume' %}" method="post" enctype="multipart/form-data" id="upload-form">
+                {% csrf_token %}
+                <div class="upload-area" id="upload-area">
+                    <input id="resume" type="file" name="resume" accept=".pdf,.docx,.doc" required hidden>
+                    <div class="upload-content">
+                        <div class="upload-placeholder">
+                            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+                                <polyline points="14 2 14 8 20 8"/>
+                                <line x1="16" y1="13" x2="8" y2="13"/>
+                                <line x1="16" y1="17" x2="8" y2="17"/>
+                                <polyline points="10 9 9 9 8 9"/>
+                            </svg>
+                            <h4 class="text-light">Drop your resume here</h4>
+                            <p class="text-light opacity-75">Supports PDF, DOCX • Max 5MB</p>
+                        </div>
+                        <div class="upload-preview" id="upload-preview" style="display: none;">
+                            <div class="file-preview">
+                                <div class="file-icon">📄</div>
+                                <div class="file-info">
+                                    <h5 id="file-name" class="text-light">document.pdf</h5>
+                                    <span class="file-size">2.4 MB</span>
+                                </div>
+                                <button type="button" class="btn-remove" id="btn-remove">×</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="upload-actions">
+                        <button type="button" class="upload-btn btn-outline-primary btn-choose" id="btn-choose">
+                            Choose File
+                        </button>
+                        <button type="submit" class="upload-btn btn-upload-primary btn-upload" id="btn-upload" disabled>
+                            <span class="btn-text">Upload & Analyze</span>
+                            <div class="btn-loader" style="display: none;">
+                                <div class="upload-spinner"></div>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        {% if error %}
+            <div class="alert alert-danger alert-dismissible fade show mt-4 mx-auto" style="max-width: 500px;">
+                <div class="d-flex align-items-center">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" class="me-2">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                    </svg>
+                    <span>{{ error }}</span>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endif %}
+
+        <!-- Hidden server JSON result -->
+        <textarea id="raw-result" hidden>{{ result|default_if_none:""|safe }}</textarea>
+
+        <!-- Generate LaTeX form -->
+        <div id="generate-wrapper" class="text-center mt-5" style="display:none;">
+            <div class="latex-card glass-card mx-auto">
+                <h3 class="gradient-text mb-3">Ready to Transform</h3>
+                <p class="text-light opacity-75 mb-4">Generate a professional LaTeX resume based on your analysis</p>
+                <form action="{% url 'generate_latex' %}" method="post" id="latex-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="resume_text" id="resume_text_input">
+                    <button type="submit" class="upload-btn btn-upload-success btn-lg px-4">
+                        <span class="btn-text">Generate LaTeX Resume</span>
+                        <div class="btn-loader" style="display: none;">
+                            <div class="upload-spinner"></div>
+                        </div>
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Placeholder for AI analysis -->
+        <div id="analysis-root" class="mt-5"></div>
+
+        <!-- PDF Preview Section (will be populated dynamically) -->
+        <div id="pdf-preview-section"></div>
+    </div>
+</div>
+
+<!-- Enhanced Notification -->
+<div class="analysis-notification" id="analysis-notification" style="display:none;">
+    <div class="notification-content">
+        <div class="notification-icon pulse">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+        </div>
+        <div class="notification-text">
+            <h5 id="notification-title">Analyzing Your Resume</h5>
+            <p id="notification-message">This may take a few moments...</p>
+        </div>
+    </div>
+    <div class="notification-progress">
+        <div class="notification-progress-bar" id="notification-progress-bar"></div>
+    </div>
+    <div class="loading-dots">
+        <span></span>
+        <span></span>
+        <span></span>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    // ==================== UTILITY FUNCTIONS ====================
+    function debugLog(message) {
+        console.log(`[DEBUG] ${new Date().toLocaleTimeString()}: ${message}`);
+    }
+
+    function resetButton(btn, btnText, btnLoader) {
+        btnText.style.opacity = '1';
+        btnLoader.style.display = 'none';
+        btn.disabled = false;
+    }
+
+    function resetLatexButton() {
+        const btn = document.querySelector('#latex-form button[type="submit"]');
+        const btnText = btn.querySelector('.btn-text');
+        const btnLoader = btn.querySelector('.btn-loader');
+        resetButton(btn, btnText, btnLoader);
+    }
+
+    function showNotification(title, message) {
+        document.getElementById("notification-title").textContent = title;
+        document.getElementById("notification-message").textContent = message;
+        const notification = document.getElementById("analysis-notification");
+        notification.style.display = "block";
+        setTimeout(() => notification.classList.add("show"), 50);
+    }
+
+    function hideNotification() {
+        const notification = document.getElementById("analysis-notification");
+        notification.classList.remove("show");
+        setTimeout(() => {
+            notification.style.display = "none";
+            document.getElementById("notification-progress-bar").style.width = "0%";
+        }, 400);
+    }
+
+    function updateProgress(percentage) {
+        document.getElementById("notification-progress-bar").style.width = percentage + "%";
+    }
+
+    // ==================== TYPING ANIMATION ====================
+    const titleEl = document.getElementById("typing-title");
+    const titleText = "Focus on What Matters";
+    let i = 0;
+    
+    (function type() {
+        if (i < titleText.length) {
+            titleEl.textContent += titleText.charAt(i++);
+            setTimeout(type, 70);
+        } else {
+            titleEl.style.borderRight = "none";
+        }
+    })();
+
+    // ==================== FILE UPLOAD LOGIC ====================
+    const fileInput = document.getElementById("resume");
+    const uploadArea = document.getElementById("upload-area");
+    const uploadPreview = document.getElementById("upload-preview");
+    const uploadPlaceholder = document.querySelector('.upload-placeholder');
+    const fileName = document.getElementById("file-name");
+    const fileSize = document.querySelector(".file-size");
+    const btnChoose = document.getElementById("btn-choose");
+    const btnRemove = document.getElementById("btn-remove");
+    const btnUpload = document.getElementById("btn-upload");
+
+    // File selection
+    btnChoose.addEventListener("click", () => fileInput.click());
+    
+    fileInput.addEventListener("change", handleFileSelect);
+    
+    // Drag and drop functionality
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        uploadArea.addEventListener(eventName, preventDefaults, false);
+    });
+    
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    
+    ['dragenter', 'dragover'].forEach(eventName => {
+        uploadArea.addEventListener(eventName, () => uploadArea.classList.add('drag-over'), false);
+    });
+    
+    ['dragleave', 'drop'].forEach(eventName => {
+        uploadArea.addEventListener(eventName, () => uploadArea.classList.remove('drag-over'), false);
+    });
+    
+    uploadArea.addEventListener('drop', handleDrop, false);
+    
+    function handleDrop(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        fileInput.files = files;
+        handleFileSelect();
+    }
+    
+    function handleFileSelect() {
+        const file = fileInput.files[0];
+        if (file) {
+            const size = (file.size / (1024 * 1024)).toFixed(1);
+            fileName.textContent = file.name;
+            fileSize.textContent = `${size} MB`;
+            
+            uploadPlaceholder.style.display = 'none';
+            uploadPreview.style.display = 'block';
+            btnUpload.disabled = false;
+        }
+    }
+    
+    // Remove file
+    btnRemove.addEventListener("click", () => {
+        fileInput.value = '';
+        uploadPreview.style.display = 'none';
+        uploadPlaceholder.style.display = 'block';
+        btnUpload.disabled = true;
+    });
+
+    // ==================== UPLOAD FORM SUBMISSION ====================
+    const uploadForm = document.getElementById("upload-form");
+    uploadForm.addEventListener("submit", (e) => {
+        if (!fileInput.files.length) {
+            e.preventDefault();
+            return;
+        }
+        
+        const btnText = btnUpload.querySelector('.btn-text');
+        const btnLoader = btnUpload.querySelector('.btn-loader');
+        
+        btnText.style.opacity = '0';
+        btnLoader.style.display = 'block';
+        btnUpload.disabled = true;
+        
+        showNotification("Uploading Resume", "Processing your file...");
+    });
+
+    // ==================== LATEX GENERATION ====================
+    const latexForm = document.getElementById("latex-form");
+    if (latexForm) {
+        latexForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            debugLog("Starting LaTeX generation...");
+
+            const btn = latexForm.querySelector('button[type="submit"]');
+            const btnText = btn.querySelector('.btn-text');
+            const btnLoader = btn.querySelector('.btn-loader');
+
+            btnText.style.opacity = '0';
+            btnLoader.style.display = 'block';
+            btn.disabled = true;
+
+            showNotification("Generating Resume", "Creating your LaTeX document...");
+            updateProgress(10);
+
+            const formData = new FormData(latexForm);
+
+            try {
+                debugLog("Sending LaTeX generation request...");
+                const res = await fetch("/generate_latex/", {
+                    method: "POST",
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+
+                if (!res.ok) {
+                    throw new Error(`HTTP error! status: ${res.status}`);
+                }
+
+                const data = await res.json();
+                debugLog("LaTeX response received: " + JSON.stringify(data));
+
+                if (data.status === "PROCESSING_LATEX") {
+                    debugLog("Starting to poll with latex_resume_id: " + data.latex_resume_id);
+                    updateProgress(30);
+                    pollLatexStatus(data.latex_resume_id);
+                } else if (data.error) {
+                    throw new Error(data.error);
+                } else {
+                    throw new Error("Unexpected response from server");
+                }
+            } catch (err) {
+                debugLog("LaTeX submission error: " + err.message);
+                alert("Error generating LaTeX resume: " + err.message);
+                resetLatexButton();
+                hideNotification();
+            }
+        });
+    }
+
+    // ==================== LATEX STATUS POLLING ====================
+    function pollLatexStatus(latexResumeId) {
+        let attempts = 0;
+        const maxAttempts = 60; // 5 minutes at 5-second intervals
+        let pollInterval;
+
+        async function poll() {
+            attempts++;
+            debugLog(`Polling attempt ${attempts} for latex_resume_id: ${latexResumeId}`);
+            updateProgress(30 + (attempts * 1)); // Gradual progress increase
+
+            try {
+                const res = await fetch(`/check-latex-status/${latexResumeId}/`);
+                
+                if (!res.ok) {
+                    throw new Error(`HTTP error! status: ${res.status}`);
+                }
+                
+                const data = await res.json();
+                debugLog(`Poll response: ${JSON.stringify(data)}`);
+                
+                if (data.status === "SUCCESS") {
+                    debugLog("✅ LaTeX generation SUCCESS!");
+                    updateProgress(100);
+                    clearInterval(pollInterval);
+                    
+                    setTimeout(() => {
+                        hideNotification();
+                        showGeneratedPDF(data.pdf_data_uri, latexResumeId);
+                        resetLatexButton();
+                    }, 1000);
+                    
+                } else if (data.status === "FAILED") {
+                    debugLog("❌ LaTeX generation FAILED: " + data.error);
+                    clearInterval(pollInterval);
+                    hideNotification();
+                    alert("LaTeX generation failed: " + (data.error || "Unknown error"));
+                    resetLatexButton();
+                    
+                } else if (data.status === "PROCESSING") {
+                    debugLog("⏳ Still processing...");
+                    
+                    if (attempts >= maxAttempts) {
+                        clearInterval(pollInterval);
+                        hideNotification();
+                        alert("LaTeX generation timed out. Please try again.");
+                        resetLatexButton();
+                    }
+                } else {
+                    debugLog("⚠️ Unknown status: " + data.status);
+                    if (attempts >= maxAttempts) {
+                        clearInterval(pollInterval);
+                        hideNotification();
+                        alert("LaTeX generation timed out. Please try again.");
+                        resetLatexButton();
+                    }
+                }
+            } catch (err) {
+                debugLog("❌ Polling error: " + err.message);
+                if (attempts >= maxAttempts) {
+                    clearInterval(pollInterval);
+                    hideNotification();
+                    alert("Polling failed. Please check the console.");
+                    resetLatexButton();
+                }
+            }
+        }
+        
+        // Start polling immediately and then every 5 seconds
+        poll();
+        pollInterval = setInterval(poll, 5000);
+    }
+
+    // ==================== PDF PREVIEW & DOWNLOAD ====================
+    function showGeneratedPDF(pdfDataUri, latexResumeId) {
+        debugLog("Showing generated PDF preview");
+        
+        const pdfSection = document.getElementById('pdf-preview-section');
+        const successAnimation = `
+            <div class="success-animation">
+                <div class="success-checkmark">
+                    <div class="check-icon">
+                        <span class="icon-line line-tip"></span>
+                        <span class="icon-line line-long"></span>
+                        <div class="icon-circle"></div>
+                        <div class="icon-fix"></div>
+                    </div>
+                </div>
+                <h3 class="gradient-text mb-3">Resume Generated Successfully!</h3>
+                <p class="text-light opacity-75">Your professional LaTeX resume is ready</p>
+            </div>
+        `;
+
+        const pdfPreview = `
+            <div class="report-container glass-card mt-4">
+                ${successAnimation}
+                <div class="preview-container mt-4">
+                    <iframe src="${pdfDataUri}" class="preview-frame" id="pdf-iframe"></iframe>
+                </div>
+                <div class="text-center mt-4">
+                    <a href="${pdfDataUri}" download="professional_resume.pdf" class="upload-btn btn-upload-success btn-lg px-4 me-3">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="me-2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        Download PDF
+                    </a>
+                    <button onclick="regenerateLaTeX()" class="upload-btn btn-upload-primary btn-lg px-4">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="me-2">
+                            <path d="M23 4v6h-6"/>
+                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                        </svg>
+                        Regenerate
+                    </button>
+                </div>
+            </div>
+        `;
+
+        pdfSection.innerHTML = pdfPreview;
+        
+        // Scroll to PDF section smoothly
+        setTimeout(() => {
+            pdfSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 500);
+
+        // Ensure PDF loads properly in iframe
+        const iframe = document.getElementById('pdf-iframe');
+        iframe.onload = () => {
+            debugLog("PDF loaded successfully in iframe");
+        };
+        iframe.onerror = () => {
+            debugLog("Error loading PDF in iframe");
+        };
+    }
+
+    // Global function for regeneration
+    window.regenerateLaTeX = function() {
+        debugLog("Regenerating LaTeX resume...");
+        if (latexForm) {
+            latexForm.dispatchEvent(new Event('submit'));
+        }
+    };
+
+    // ==================== ANALYSIS RESULT PARSING ====================
+    const raw = document.getElementById("raw-result").value.trim();
+    if (raw) {
+        try {
+            const jsonStr = raw.replaceAll("&quot;", '"');
+            const data = JSON.parse(jsonStr);
+            if (data.status === "PROCESSING") {
+                pollStatus(data.resume_id);
+            } else {
+                renderResult(data);
+            }
+        } catch (e) {
+            console.warn("Invalid JSON in raw-result:", e, raw);
+        }
+    }
+
+    // ==================== RESUME ANALYSIS POLLING ====================
+    function pollStatus(resumeId) {
+        showNotification("Analyzing Resume", "This may take a few moments...");
+        let pct = 0;
+        const interval = setInterval(() => {
+            pct = Math.min(pct + Math.random() * 10, 90);
+            updateProgress(pct);
+        }, 800);
+
+        async function poll() {
+            try {
+                const res = await fetch(`/check-status/${resumeId}/`);
+                const data = await res.json();
+                if (data.status && data.status !== "PROCESSING") {
+                    clearInterval(interval);
+                    updateProgress(100);
+                    setTimeout(() => {
+                        renderResult(data);
+                        hideNotification();
+                    }, 500);
+                } else {
+                    setTimeout(poll, 4000);
+                }
+            } catch (err) {
+                console.error("Polling error:", err);
+                setTimeout(poll, 5000);
+            }
+        }
+        poll();
+    }
+
+    // ==================== RENDER ANALYSIS RESULTS ====================
+    function renderResult(parsed) {
+        const root = document.getElementById("analysis-root");
+        root.innerHTML = "";
+        
+        if (!parsed || !parsed.ai_analysis) {
+            root.innerHTML = `
+                <div class="glass-card text-center">
+                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="mb-3 text-warning">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="12" y1="8" x2="12" y2="12"/>
+                        <line x1="12" y1="16" x2="12.01" y2="16"/>
+                    </svg>
+                    <h4 class="text-light">No Analysis Available</h4>
+                    <p class="text-muted">Please try uploading your resume again.</p>
+                </div>
+            `;
+            return;
+        }
+
+        const ai = parsed.ai_analysis.ai_analysis || parsed.ai_analysis;
+        const score = ai.ats_score || 0;
+        const color = score >= 80 ? "#4ade80" : score >= 60 ? "#facc15" : "#ef4444";
+        const dashOffset = 339.292 - 339.292 * (score / 100);
+
+        root.innerHTML = `
+            <div class="report-container">
+                <div class="text-center mb-5">
+                    <div class="position-relative d-inline-block">
+                        <svg width="140" height="140" viewBox="0 0 140 140">
+                            <circle cx="70" cy="70" r="64" stroke="rgba(255,255,255,0.1)" stroke-width="8" fill="none"/>
+                            <circle cx="70" cy="70" r="64" stroke="${color}" stroke-width="8" 
+                                fill="none" stroke-dasharray="402.124" stroke-dashoffset="${dashOffset}"
+                                style="transition: stroke-dashoffset 1.5s ease; transform: rotate(-90deg); transform-origin: 50% 50%;" />
+                            <text x="50%" y="50%" text-anchor="middle" fill="white" font-size="28" font-weight="bold" dy=".3em">${score}%</text>
+                        </svg>
+                    </div>
+                    <h3 class="gradient-text mt-3">ATS Score</h3>
+                    <p class="text-light opacity-75">Based on comprehensive analysis of your resume</p>
+                </div>
+                
+                <div class="analysis-grid">
+                    <div class="section">
+                        <div class="section-header">
+                            <div class="section-icon">📝</div>
+                            <h4>Grammar & Clarity</h4>
+                        </div>
+                        <p>${ai.grammar_feedback || "No grammar feedback provided."}</p>
+                    </div>
+                    
+                    <div class="section">
+                        <div class="section-header">
+                            <div class="section-icon">⚡</div>
+                            <h4>Impact & Achievements</h4>
+                        </div>
+                        <p>${ai.impact_feedback || "No impact feedback provided."}</p>
+                    </div>
+                    
+                    <div class="section">
+                        <div class="section-header">
+                            <div class="section-icon">🎙️</div>
+                            <h4>Tone & Professionalism</h4>
+                        </div>
+                        <p>${ai.tone_feedback || "No tone feedback provided."}</p>
+                    </div>
+                    
+                    <div class="section highlight">
+                        <div class="section-header">
+                            <div class="section-icon">💡</div>
+                            <h4>Key Recommendations</h4>
+                        </div>
+                        <p>${ai.overall_recommendations || "No recommendations provided."}</p>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Reveal LaTeX generator with animation
+        const genWrap = document.getElementById("generate-wrapper");
+        const resumeTextInput = document.getElementById("resume_text_input");
+        
+        setTimeout(() => {
+            genWrap.style.display = "block";
+            genWrap.style.opacity = "0";
+            genWrap.style.transform = "translateY(20px)";
+            
+            setTimeout(() => {
+                genWrap.style.transition = "all 0.5s ease";
+                genWrap.style.opacity = "1";
+                genWrap.style.transform = "translateY(0)";
+            }, 100);
+        }, 500);
+        
+        resumeTextInput.value = JSON.stringify(parsed);
+    }
+});
+</script>
+{% endblock %}

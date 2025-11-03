@@ -1,17 +1,32 @@
 from django.urls import path, include
-from . import views
+from core.views import base, auth, api, jd
 
 urlpatterns = [
-   path("", views.home_page, name="home"),  # New landing page
-    path("upload/", views.upload_page, name="upload_resume"),  # Existing resume upload
-    path("jd-upload/", views.jd_upload_page, name="jd_upload_page"),  # for GET form view
-    path("jd-upload/submit/", views.upload_resume_with_jd, name="upload_resume_with_jd"),  # POST submission
-    path("generate_latex/", views.generate_latex_view, name="generate_latex"),
-    path("django-rq/", include("django_rq.urls")),
-    path("check-status/<int:resume_id>/", views.check_resume_status, name="check_status"),
+    # Pages
+    path("", base.home_page, name="home"),
+    path("dashboard/", base.dashboard, name="dashboard"),
 
-    path("signup/", views.signup_view, name="signup"),
-    path("login/", views.login_view, name="login"),
-    path("logout/", views.logout_view, name="logout"),
+    # ✅ ADD THIS
+    path("dashboard/partial/<str:tool>/", base.load_tool_partial, name="tool_partial"),
+
+    # Auth
+    path("signup/", auth.signup_view, name="signup"),
+    path("login/", auth.login_view, name="login"),
+    path("logout/", auth.logout_view, name="logout"),
+
+    # Resume API
+    path("api/resume/analyze/", api.api_resume_analyze, name="api_resume_analyze"),
+    path("api/resume/status/<int:resume_id>/", api.api_resume_status, name="api_resume_status"),
+
+    
+
+    # LaTeX API
+    path("api/latex/generate/", api.api_latex_generate, name="api_latex_generate"),
+    path("api/latex/status/<int:latex_resume_id>/", api.api_latex_status, name="api_latex_status"),
+
+    # Background Worker UI
     path("django-rq/", include("django_rq.urls")),
+    path("api/jd/match/", jd.jd_match_api, name="jd_match_api"),
+    path("api/jd/status/<int:jd_id>/", jd.jd_match_status, name="jd_match_status"),
+
 ]

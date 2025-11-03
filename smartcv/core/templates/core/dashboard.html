@@ -1,0 +1,275 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+#floating-loader {
+  position: fixed;
+  top: 2rem;
+  right: 2rem;
+  background: #111;
+  border: 1px solid #333;
+  border-radius: 12px;
+  padding: 1rem 1.3rem;
+  font-size: 14px;
+  color: #fff;
+  display: none;
+  box-shadow: 0 0 25px rgba(0,0,0,0.35);
+  z-index: 9999;
+  animation: pulse 1.4s infinite;
+}
+@keyframes pulse {
+  0% { opacity: .6; }
+  50% { opacity: 1; }
+  100% { opacity: .6; }
+}
+</style>
+
+<div id="floating-loader">Analyzing your resume… ⏳</div>
+
+<div class="row g-4">
+
+  <!-- Sidebar -->
+  <div class="col-3">
+    <div class="list-group" id="tool-nav">
+      <button class="list-group-item list-group-item-action" data-tool="resume">Resume Analysis</button>
+      <button class="list-group-item list-group-item-action" data-tool="jd">JD Matcher</button>
+      <button class="list-group-item list-group-item-action" data-tool="latex">LaTeX / PDF Maker</button>
+      <button class="list-group-item list-group-item-action" data-tool="linkedin">LinkedIn Analyzer</button>
+      <button class="list-group-item list-group-item-action" data-tool="skill_gap">Skill Gap Analysis</button>
+    </div>
+  </div> <!-- ✅ THIS WAS MISSING -->
+
+  <!-- Main Dynamic Content -->
+  <div class="col-9">
+    <div id="tool-container">
+      <p class="text-muted">Select a tool to begin.</p>
+    </div>
+  </div>
+
+</div>
+<script>
+// ===================================================================
+//                      LOAD TOOL PARTIAL
+// ===================================================================
+function loadTool(tool) {
+  fetch(`/dashboard/partial/${tool}/`)
+    .then(r => r.text())
+    .then(html => {
+      document.getElementById("tool-container").innerHTML = html;
+
+      // Reattach handlers each time content changes
+      attachResumeUploadHandler();
+      attachLatexGenerateHandler();
+      attachJDResumeUploadHandler();
+      attachJDMatcherHandler();
+    });
+}
+
+
+// ===================================================================
+//                      RESUME ANALYSIS
+// ===================================================================
+function attachResumeUploadHandler() {
+  const form = document.getElementById("resume-upload-form");
+  if (!form) return;
+
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+
+    const status = document.getElementById("resume-analysis-status");
+    const result = document.getElementById("resume-analysis-result");
+    const latexWrapper = document.getElementById("generate-latex-wrapper");
+
+    status.style.display = "block";
+    result.style.display = "none";
+    if (latexWrapper) latexWrapper.style.display = "none";
+
+    let res = await fetch("/api/resume/analyze/", { method: "POST", body: new FormData(form) });
+    let data = await res.json();
+
+    if (!data.resume_id) {
+      status.style.display = "none";
+      result.style.display = "block";
+      result.innerText = "❌ Upload failed.\n\n" + JSON.stringify(data, null, 2);
+      return;
+    }
+
+    const resumeId = data.resume_id;
+
+    const poll = setInterval(async () => {
+      let r = await fetch(`/api/resume/status/${resumeId}/`);
+      let out = await r.json();
+
+      if (out.status !== "PROCESSING") {
+        clearInterval(poll);
+        status.style.display = "none";
+        result.style.display = "block";
+        result.innerText = JSON.stringify(out, null, 2);
+
+        if (out.status === "SUCCESS" && latexWrapper) {
+          latexWrapper.style.display = "block";
+        }
+      }
+    }, 1000);
+  };
+}
+
+
+// ===================================================================
+//                      LATEX GENERATION
+// ===================================================================
+function attachLatexGenerateHandler() {
+  const btn = document.getElementById("generate-latex-btn");
+  if (!btn) return;
+
+  btn.onclick = async () => {
+    btn.disabled = true;
+    btn.innerText = "⏳ Generating…";
+
+    const statusBox = document.getElementById("latex-status");
+    const resultBox = document.getElementById("latex-result");
+    const link = document.getElementById("latex-download-link");
+
+    statusBox.style.display = "block";
+    resultBox.style.display = "none";
+
+    let res = await fetch("/api/latex/generate/", {
+      method: "POST",
+      headers: { "X-CSRFToken": getCookie("csrftoken") }
+    });
+
+    let data = await res.json();
+    if (!data.latex_resume_id) {
+      alert("Error creating LaTeX resume.");
+      btn.disabled = false;
+      btn.innerText = "🚀 Generate LaTeX Resume";
+      return;
+    }
+
+    const latexId = data.latex_resume_id;
+
+    const poll = setInterval(async () => {
+      let r = await fetch(`/api/latex/status/${latexId}/`);
+      let out = await r.json();
+
+      if (out.status !== "PROCESSING") {
+        clearInterval(poll);
+        statusBox.style.display = "none";
+
+        if (out.status === "SUCCESS") {
+          resultBox.style.display = "block";
+          link.href = out.pdf_data_uri;
+          btn.innerText = "✅ Ready";
+        } else {
+          alert("LaTeX generation failed.");
+          btn.disabled = false;
+          btn.innerText = "🚀 Generate LaTeX Resume";
+        }
+      }
+    }, 1000);
+  };
+}
+
+
+// ===================================================================
+//                JD RESUME UPLOAD (Prevent Redirect)
+// ===================================================================
+function attachJDResumeUploadHandler() {
+  const form = document.getElementById("jd-resume-upload-form");
+  if (!form) return;
+
+  form.onsubmit = async (e) => {
+    e.preventDefault(); // ✅ Stop browser from navigating away
+
+    const status = document.getElementById("jd-upload-status");
+    status.style.display = "block";
+    status.innerText = "Analyzing uploaded resume… ⏳";
+
+    let res = await fetch("/api/resume/analyze/", {
+      method: "POST",
+      body: new FormData(form)
+    });
+
+    let data = await res.json();
+
+    if (!data.resume_id) {
+      status.innerText = "❌ Resume upload failed.";
+      return;
+    }
+
+    status.innerText = "✅ Resume uploaded successfully. Now paste JD below.";
+  };
+}
+
+
+// ===================================================================
+//                JD MATCHER (RQ + POLL)
+// ===================================================================
+function attachJDMatcherHandler() {
+  const form = document.getElementById("jd-form");
+  if (!form) return;
+
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+
+    const status = document.getElementById("jd-status");
+    const result = document.getElementById("jd-result");
+
+    status.style.display = "block";
+    status.innerText = "Matching your resume... ⏳";
+    result.style.display = "none";
+
+    let res = await fetch("/api/jd/match/", {
+      method: "POST",
+      headers: { "X-CSRFToken": getCookie("csrftoken") },
+      body: new FormData(form)
+    });
+
+    let data = await res.json();
+
+    if (!data.jd_id) {
+      status.style.display = "none";
+      result.style.display = "block";
+      result.innerText = "❌ Failed.\n\n" + JSON.stringify(data, null, 2);
+      return;
+    }
+
+    const jdId = data.jd_id;
+
+    const poll = setInterval(async () => {
+      let r = await fetch(`/api/jd/status/${jdId}/`);
+      let out = await r.json();
+
+      if (out.status !== "PROCESSING") {
+        clearInterval(poll);
+        status.style.display = "none";
+        result.style.display = "block";
+        result.innerText = JSON.stringify(out, null, 2);
+      }
+    }, 1200);
+  };
+}
+
+
+// ===================================================================
+//                      UTIL
+// ===================================================================
+function getCookie(name) {
+  return document.cookie.split("; ").find(v => v.startsWith(name + "="))?.split("=")[1];
+}
+
+
+// ===================================================================
+//                      SIDEBAR LOAD
+// ===================================================================
+document.querySelectorAll("#tool-nav button").forEach(btn => {
+  btn.onclick = () => loadTool(btn.dataset.tool);
+});
+
+// Load resume tool by default
+loadTool("resume");
+</script>
+
+
+
+{% endblock %}
