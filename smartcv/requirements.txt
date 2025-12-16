@@ -24,7 +24,7 @@ django-ratelimit==4.1.0
 dparse==0.6.4
 en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl#sha256=1932429db727d4bff3deed6b34cfc05df17794f4a52eeb26cf8928f7c1a0fb85
 etelemetry==0.3.1
-filelock==3.20.0
+filelock==3.20.1
 google-ai-generativelanguage==0.6.15
 google-api-core==2.26.0
 google-api-python-client==2.185.0
